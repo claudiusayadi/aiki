@@ -1,0 +1,65 @@
+name: aiki
+services:
+  aiki-api:
+    container_name: aiki-api-dev
+    # image: ghcr.io/claudiusayadi/aiki-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    user: "$PUID:$PGID"
+    restart: unless-stopped
+    ports:
+      - "$API_PORT:$API_PORT"
+    env_file:
+      - ./.env
+    environment:
+      API_PORT: $API_PORT
+      API_URL: $API_URL
+      DB_URL: $DB_URL
+      EMAIL_FROM: $EMAIL_FROM
+      EMAIL_HOST: $EMAIL_HOST
+      EMAIL_PASSWORD: $EMAIL_PASSWORD
+      EMAIL_PORT: $EMAIL_PORT
+      EMAIL_SENDER: $EMAIL_SENDER
+      EMAIL_USERNAME: $EMAIL_USERNAME
+      HTTP_MAX_REDIRECTS: $HTTP_MAX_REDIRECTS
+      HTTP_TIMEOUT: $HTTP_TIMEOUT
+      JWT_ACCESS_TOKEN_TTL: $JWT_ACCESS_TOKEN_TTL
+      JWT_AUDIENCE: $JWT_AUDIENCE
+      JWT_ISSUER: $JWT_ISSUER
+      JWT_REFRESH_TOKEN_TTL: $JWT_REFRESH_TOKEN_TTL
+      JWT_SECRET: $JWT_SECRET
+      NODE_ENV: $NODE_ENV
+      PAYSTACK_SECRET_KEY: $PAYSTACK_SECRET_KEY
+      PAYSTACK_PUBLIC_KEY: $PAYSTACK_PUBLIC_KEY
+      PAYSTACK_BASE_URL: $PAYSTACK_BASE_URL
+      PAYSTACK_SUCCESS_URL: $PAYSTACK_SUCCESS_URL
+      REDIS_HOST: $REDIS_HOST
+      REDIS_PORT: $REDIS_PORT
+      SMTP_LOGIN: $SMTP_LOGIN
+      SMTP_PASSWORD: $SMTP_PASSWORD
+      SMTP_PORT: $SMTP_PORT
+      SMTP_SERVER: $SMTP_SERVER
+      THROTTLER_LIMIT: $THROTTLER_LIMIT
+      THROTTLER_TTL: $THROTTLER_TTL
+      TZ: $TZ
+    networks:
+      - db
+    volumes:
+      - ./:/usr/src/api
+      - api_node_modules:/usr/src/api/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:$API_PORT/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+
+networks:
+  db:
+    external: true
+
+volumes:
+  api_node_modules:

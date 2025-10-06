@@ -1,0 +1,17 @@
+FROM node:20-alpine AS base
+
+WORKDIR /usr/src/api
+
+# Copy only the api package manifest and the root lockfile, then install.
+COPY package.json ./
+COPY yarn.lock* ./
+
+RUN yarn install
+
+ENV NODE_ENV=development
+# Copy only the api workspace sources (avoid overwriting package.json)
+COPY . ./
+
+EXPOSE ${API_PORT}
+
+CMD [ "yarn", "run", "start:dev" ]
