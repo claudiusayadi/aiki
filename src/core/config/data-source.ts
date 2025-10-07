@@ -5,5 +5,5 @@ export default new DataSource({
   type: 'postgres',
   url: ApiConfig.DB_URL,
   entities: ['dist/src/modules/**/*.entity.js'],
-  migrations: ['dist/src/modules/db/migrations/*.js'],
+  migrations: ['dist/src/core/db/migrations/*.js'],
 });
