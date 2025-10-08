@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
+import helmetConfig from 'src/core/config/helmet.config';
 import * as pkg from '../package.json';
 import { AppModule } from './app.module';
 import { ApiConfig } from './core/config/app.config';
@@ -19,8 +20,13 @@ async function bootstrap() {
   const prefix = `api/v${versionMajor}`;
   const title: string = pkg?.name?.replace(/-/g, ' ').toUpperCase() ?? '';
 
-  app.use(helmet());
-  app.enableCors({ origin: true, credentials: true });
+  app.use(helmet(helmetConfig));
+  app.enableCors({
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  });
   app.use(cookieParser());
   app.setGlobalPrefix(prefix);
 

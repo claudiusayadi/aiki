@@ -4,11 +4,11 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RoleGuard } from 'src/modules/auth/guards/role.guard';
-import { AllExceptionsFilter } from '../common/filters/all-exceptions.filter';
+
+import { GlobalExceptionsFilter } from '../common/filters/global-exceptions.filter';
 import { Traffic } from '../common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from '../common/interceptors/response.interceptor';
 import { VALIDATION_PIPE_OPTIONS } from '../common/utils/common.constants';
-import { ApiConfig } from './app.config';
 
 export const apiProviders = [
   {
@@ -29,7 +29,7 @@ export const apiProviders = [
   },
   {
     provide: APP_FILTER,
-    useClass: AllExceptionsFilter,
+    useClass: GlobalExceptionsFilter,
   },
   {
     provide: APP_INTERCEPTOR,
@@ -39,8 +39,4 @@ export const apiProviders = [
     provide: APP_INTERCEPTOR,
     useClass: ResponseInterceptor,
   },
-];
-
-export const configProvider = [
-  { provide: ApiConfig.API_TOKEN, useValue: ApiConfig.API_TOKEN },
 ];

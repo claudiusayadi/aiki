@@ -10,14 +10,15 @@ import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 
 @Catch()
-export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name);
+export class GlobalExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionsFilter.name);
 
   constructor(private readonly config: ConfigService) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
@@ -44,7 +45,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     response.status(status).json({
       code: status,
+      timestamp: new Date().toISOString(),
       status: Number(status) >= 400 && Number(status) < 500 ? 'fail' : 'error',
+      path: request.url,
+      method: request.method,
       message,
       ...(this.config.get<string>('NODE_ENV') === 'development' && {
         stack: exception instanceof Error ? exception.stack : undefined,
