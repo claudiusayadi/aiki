@@ -43,7 +43,9 @@ export class PaymentsService {
     currentUser: IRequestUser,
     dto: InitializePaymentDto,
   ) {
-    const plan = await this.plansRepo.findOne({ where: { id: dto.plan_id } });
+    const plan = await this.plansRepo.findOne({
+      where: { slug: dto.plan_slug },
+    });
     if (!plan) throw new NotFoundException('Plan not found');
 
     const user = await this.usersRepo.findOne({

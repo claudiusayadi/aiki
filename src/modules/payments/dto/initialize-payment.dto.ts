@@ -1,13 +1,13 @@
-import { IsInt, IsNotEmpty, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class InitializePaymentDto {
   /**
-   * ID of the plan to purchase
-   * @example "550e8400-e29b-41d4-a716-446655440000"
+   * Slug of the plan to purchase (e.g., "focus" or "flow")
+   * @example "focus"
    */
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
-  plan_id: string;
+  plan_slug: string;
 
   /**
    * Quantity to purchase (for Focus plan)
