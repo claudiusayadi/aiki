@@ -27,7 +27,7 @@ RUN yarn run build
 # Copy production dependencies and source code into final image
 FROM base AS release
 COPY --from=install /tmp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/api/dist ./
+COPY --from=prerelease /usr/src/api/dist ./dist
 COPY --from=prerelease /usr/src/api/package.json ./
 
 # Expose port
