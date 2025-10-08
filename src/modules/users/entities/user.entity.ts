@@ -50,8 +50,8 @@ export class User {
   @JoinColumn({ name: 'plan_id' })
   plan: Plan;
 
-  @Column({ type: 'int', default: 5 })
-  tasks_left: number;
+  @Column({ type: 'int', nullable: true, default: 5 })
+  tasks_left: number | null;
 
   @Column({ type: 'timestamp', nullable: true })
   renews_at: Date | null;
