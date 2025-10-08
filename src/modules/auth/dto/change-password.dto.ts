@@ -6,7 +6,7 @@ export class ChangePasswordDto {
    * @example "Current_Password123"
    */
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Current password is required.' })
   currentPassword: string;
 
   /**
@@ -20,7 +20,7 @@ export class ChangePasswordDto {
    * @example "New_Password123"
    */
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'New password is required.' })
   @IsStrongPassword(
     {
       minLength: 8,

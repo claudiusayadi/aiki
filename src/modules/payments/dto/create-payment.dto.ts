@@ -50,7 +50,7 @@ export class CreatePaymentDto {
    * @example PaymentType.ONE_TIME
    */
   @IsEnum(PaymentType)
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Payment Type is required' })
   payment_type: PaymentType;
 
   /**
@@ -78,10 +78,10 @@ export class CreatePaymentDto {
   user_id: string;
 
   /**
-   * Plan ID
-   * @example '123e4567-e89b-12d3-a456-426614174001'
+   * Plan Slug
+   * @example 'flow'
    */
-  @IsUUID()
+  @IsString()
   @IsOptional()
-  plan_id?: string;
+  plan_slug?: string;
 }

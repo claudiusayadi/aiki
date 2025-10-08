@@ -7,7 +7,7 @@ export class VerifyEmailDto {
     example: 'user@example.com',
   })
   @IsEmail()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Email is required.' })
   email: string;
 
   @ApiProperty({
@@ -18,6 +18,6 @@ export class VerifyEmailDto {
   })
   @IsString()
   @Length(6, 6)
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Verification code is required.' })
   code: string;
 }
