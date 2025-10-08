@@ -1,11 +1,6 @@
-import { IsEmail, IsNotEmpty } from 'class-validator';
+import { PickType } from '@nestjs/swagger';
+import { CreateUserDto } from '../../users/dto/create-user.dto';
 
-export class ResendVerificationDto {
-  /**
-   * User email address
-   * @example "chiefprocrastinator@gmail.com"
-   */
-  @IsEmail()
-  @IsNotEmpty({ message: 'Email is required.' })
-  email: string;
-}
+export class ResendVerificationDto extends PickType(CreateUserDto, [
+  'email',
+] as const) {}
