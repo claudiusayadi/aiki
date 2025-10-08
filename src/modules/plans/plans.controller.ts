@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -17,6 +18,7 @@ import {
 import { DeleteResult, UpdateResult } from 'typeorm';
 
 import { IdDto } from '../../core/common/dto/id.dto';
+import { QueryDto } from '../../core/common/dto/query.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/roles.enum';
@@ -34,7 +36,7 @@ export class PlansController {
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Roles(UserRole.ADMIN)
   @Post()
-  create(@Body() dto: CreatePlanDto): Promise<Plan> {
+  public create(@Body() dto: CreatePlanDto): Promise<Plan> {
     return this.plansService.create(dto);
   }
 
@@ -42,16 +44,24 @@ export class PlansController {
   @ApiOkResponse({ type: [Plan] })
   @Public()
   @Get()
-  findAll(): Promise<Plan[]> {
-    return this.plansService.findAll();
+  public findAll(@Query() query: QueryDto) {
+    return this.plansService.findAll(query);
   }
 
   @ApiOperation({ summary: 'Get a plan by ID' })
   @ApiOkResponse({ type: Plan })
   @Public()
   @Get(':id')
-  findOne(@Param() { id }: IdDto): Promise<Plan> {
+  public findOne(@Param() { id }: IdDto): Promise<Plan> {
     return this.plansService.findOne(id);
+  }
+
+  @ApiOperation({ summary: 'Get a plan by slug' })
+  @ApiOkResponse({ type: Plan })
+  @Public()
+  @Get(':slug')
+  public findBySlug(@Param('slug') slug: string): Promise<Plan> {
+    return this.plansService.findOne(slug);
   }
 
   @ApiOperation({ summary: 'Update a plan' })
@@ -59,7 +69,7 @@ export class PlansController {
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  update(
+  public update(
     @Param() { id }: IdDto,
     @Body() dto: UpdatePlanDto,
   ): Promise<UpdateResult> {
@@ -71,7 +81,7 @@ export class PlansController {
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  remove(@Param() { id }: IdDto): Promise<DeleteResult> {
+  public remove(@Param() { id }: IdDto): Promise<DeleteResult> {
     return this.plansService.remove(id);
   }
 }

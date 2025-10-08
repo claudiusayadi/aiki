@@ -2,6 +2,9 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 
+import { QueryDto } from '../../core/common/dto/query.dto';
+import { PaginatedResult } from '../../core/common/interfaces/paginated-result.interface';
+import { PaginationUtil } from '../../core/common/utils/pagination.util';
 import { ApiConfig } from '../../core/config/app.config';
 import { CreatePlanDto } from '../plans/dto/create-plan.dto';
 import { UpdatePlanDto } from '../plans/dto/update-plan.dto';
@@ -16,33 +19,37 @@ export class PlansService implements OnModuleInit {
     private readonly planRepo: Repository<Plan>,
   ) {}
 
-  async onModuleInit() {
-    await this.seedDefaultPlans();
-  }
-
-  create(dto: CreatePlanDto): Promise<Plan> {
+  public async create(dto: CreatePlanDto): Promise<Plan> {
     return this.planRepo.save(dto);
   }
 
-  findAll(): Promise<Plan[]> {
-    return this.planRepo.find();
+  public async findAll(query: QueryDto): Promise<PaginatedResult<Plan>> {
+    return await PaginationUtil.paginate(this.planRepo, {
+      pagination: query,
+      sort: query,
+    });
   }
 
-  findOne(id: string, slug?: string): Promise<Plan> {
+  public async findOne(id: string, slug?: string): Promise<Plan> {
     return this.planRepo.findOneOrFail({
       where: slug ? { slug } : { id },
     });
   }
 
-  update(id: string, dto: UpdatePlanDto): Promise<UpdateResult> {
+  public async update(id: string, dto: UpdatePlanDto): Promise<UpdateResult> {
     return this.planRepo.update(id, dto);
   }
 
-  remove(id: string): Promise<DeleteResult> {
-    return this.planRepo.delete(id);
+  public async remove(id: string): Promise<DeleteResult> {
+    const plan = await this.findOne(id);
+    return this.planRepo.delete({ id: plan.id });
   }
 
-  private async seedDefaultPlans() {
+  public async onModuleInit() {
+    await this.seedDefaultPlans();
+  }
+
+  private async seedDefaultPlans(): Promise<void> {
     const count = await this.planRepo.count();
     if (count > 0) return;
 
