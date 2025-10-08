@@ -211,6 +211,10 @@ export class PaymentsService {
         throw new NotFoundException('Payment record not found');
       }
 
+      if (!payment.plan) {
+        throw new Error('Payment plan not found');
+      }
+
       // Update payment status
       payment.status = PaymentStatus.SUCCESS;
       payment.metadata = {
@@ -232,10 +236,21 @@ export class PaymentsService {
 
       if (payment.payment_type === PaymentType.ONE_TIME) {
         // Focus plan: increment tasks_left by quantity
-        user.tasks_left = (user.tasks_left || 0) + (payment.quantity || 1);
+        const currentTasks = user.tasks_left || 0;
+        const additionalTasks = payment.quantity || 1;
+        user.tasks_left = currentTasks + additionalTasks;
+
+        // Update user's plan to Focus plan
+        user.plan = payment.plan;
       } else if (payment.payment_type === PaymentType.SUBSCRIPTION) {
-        // Flow plan: set tasks_left to null (unlimited)
+        // Flow plan: set tasks_left to null (unlimited) and update plan
         user.tasks_left = null;
+        user.plan = payment.plan;
+
+        // Set renewal date for subscription
+        const renewalDate = new Date();
+        renewalDate.setMonth(renewalDate.getMonth() + 1);
+        user.renews_at = renewalDate;
       }
 
       await this.usersRepo.save(user);
