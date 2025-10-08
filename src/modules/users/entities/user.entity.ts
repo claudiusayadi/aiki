@@ -62,7 +62,7 @@ export class User {
     enumName: 'user_role',
     default: UserRole.USER,
   })
-  role: UserRole;
+  role: UserRole = UserRole.USER;
 
   @Column({ type: 'timestamp', name: 'last_login_at', nullable: true })
   lastLoginAt?: Date;

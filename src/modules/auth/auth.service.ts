@@ -116,6 +116,9 @@ export class AuthService {
   }
 
   async signin(user: IRequestUser) {
+    // Update last login timestamp
+    await this.usersRepo.update(user.id, { lastLoginAt: new Date() });
+
     return this.generateTokens(user);
   }
 

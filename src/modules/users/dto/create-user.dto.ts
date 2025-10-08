@@ -77,7 +77,8 @@ export class CreateUserDto {
    */
   @IsString()
   @IsEnum(() => UserRole, { message: 'Role must be either "admin" or "user".' })
-  role: UserRole = UserRole.USER;
+  @IsOptional()
+  role?: UserRole;
 
   /**
    * User's last login date and time
