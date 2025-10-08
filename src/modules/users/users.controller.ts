@@ -44,7 +44,7 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Post()
   @Roles(UserRole.ADMIN)
-  async create(@Body() dto: CreateUserDto) {
+  async create(@Body() dto: CreateUserDto): Promise<User> {
     return await this.usersService.create(dto);
   }
 
@@ -56,7 +56,7 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Get()
   @Roles(UserRole.ADMIN)
-  async findAll() {
+  async findAll(): Promise<User[]> {
     return this.usersService.findAll();
   }
 
@@ -84,7 +84,7 @@ export class UsersController {
     @Param() { id }: IdDto,
     @ActiveUser() user: IRequestUser,
     @Body() dto: UpdateUserDto,
-  ) {
+  ): Promise<User> {
     return this.usersService.update(id, user, dto);
   }
 
@@ -101,7 +101,7 @@ export class UsersController {
     @Param() { id }: IdDto,
     @ActiveUser() user: IRequestUser,
     @Query() { soft }: RemoveDto,
-  ) {
+  ): Promise<User> {
     return this.usersService.remove(id, user, soft);
   }
 
@@ -112,7 +112,7 @@ export class UsersController {
   })
   @Get('recover')
   @Public()
-  recover(@Query() dto: AuthDto) {
+  recover(@Query() dto: AuthDto): Promise<User> {
     return this.usersService.recover(dto);
   }
 }

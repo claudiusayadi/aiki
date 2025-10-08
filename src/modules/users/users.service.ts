@@ -22,7 +22,7 @@ export class UsersService {
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) {}
 
-  public async create(dto: CreateUserDto) {
+  public async create(dto: CreateUserDto): Promise<User> {
     const existingUser = await this.usersRepo.findOne({
       where: { email: dto.email },
     });
@@ -33,14 +33,14 @@ export class UsersService {
     return await this.usersRepo.save(user);
   }
 
-  public async findAll() {
+  public async findAll(): Promise<User[]> {
     return await this.usersRepo.find({
       relations: { plan: true },
       order: { registry: { createdAt: 'DESC' } },
     });
   }
 
-  public async findOne(id: string, currentUser: IRequestUser) {
+  public async findOne(id: string, currentUser: IRequestUser): Promise<User> {
     if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
 
     return await this.usersRepo.findOneOrFail({
@@ -53,7 +53,7 @@ export class UsersService {
     id: string,
     currentUser: IRequestUser,
     dto: UpdateUserDto,
-  ) {
+  ): Promise<User> {
     if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
 
     const user = await this.usersRepo.preload({
@@ -71,7 +71,7 @@ export class UsersService {
     id: string,
     currentUser: IRequestUser,
     soft: boolean = false,
-  ) {
+  ): Promise<User> {
     if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
     if (!soft) throw new ForbiddenException('Forbidden resource');
 
@@ -79,7 +79,7 @@ export class UsersService {
     return soft ? this.usersRepo.softRemove(user) : this.usersRepo.remove(user);
   }
 
-  public async recover(dto: AuthDto) {
+  public async recover(dto: AuthDto): Promise<User> {
     const { email, password } = dto;
 
     const user = await this.usersRepo.findOne({
@@ -100,7 +100,7 @@ export class UsersService {
   public async updateUserTaskLimits(
     userId: string,
     additionalTasks?: number | null,
-  ) {
+  ): Promise<User> {
     const user = await this.usersRepo.findOne({
       where: { id: userId },
       relations: { plan: true },

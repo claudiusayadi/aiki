@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 
-import { ApiConfig } from 'src/core/config/app.config';
+import { ApiConfig } from '../../core/config/app.config';
 import { CreatePlanDto } from '../plans/dto/create-plan.dto';
 import { UpdatePlanDto } from '../plans/dto/update-plan.dto';
 import { Plan } from './entities/plan.entity';
