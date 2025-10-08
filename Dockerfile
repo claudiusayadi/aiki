@@ -1,36 +1,20 @@
-FROM node:20-alpine AS base
-
+FROM node:22-alpine AS base
 WORKDIR /usr/src/api
-
-# Install dependencies into tmp directory
-# This will cache them and speed up future builds
-FROM base AS install
-RUN mkdir -p /tmp/dev
-COPY package.json yarn.lock /tmp/dev/
-RUN cd /tmp/dev && yarn install --frozen-lockfile
-
-# Install with --production (exclude devDependencies)
-RUN mkdir -p /tmp/prod
-COPY package.json yarn.lock /tmp/prod/
-RUN cd /tmp/prod && yarn install --frozen-lockfile --production
-
-# Copy node_modules from tmp directory
-# Then copy all (non-ignored) project files into the image
-FROM base AS prerelease
-COPY --from=install /tmp/dev/node_modules node_modules
-COPY . ./
-
-# Build the application
 ENV NODE_ENV=production
-RUN yarn run build
 
-# Copy production dependencies and source code into final image
-FROM base AS release
-COPY --from=install /tmp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/api/dist ./dist
-COPY --from=prerelease /usr/src/api/package.json ./
+FROM base AS deps
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
-# Expose port
+FROM base AS build
+COPY --from=deps /usr/src/api/node_modules ./node_modules
+COPY . .
+RUN yarn build
+
+FROM node:22-alpine AS release
+WORKDIR /usr/src/api
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production
+COPY --from=build /usr/src/api/dist ./dist
 EXPOSE ${API_PORT}
-
-CMD [ "node", "dist/main.js" ]
+CMD ["node", "dist/main.js"]
