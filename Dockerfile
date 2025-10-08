@@ -1,23 +1,36 @@
-# Use the official Node.js image as the base image
-FROM node:22-alpine
+FROM node:20-alpine AS base
 
-# Set the working directory inside the container
-WORKDIR /usr/src/app
+WORKDIR /usr/src/api
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
+# Install dependencies into tmp directory
+# This will cache them and speed up future builds
+FROM base AS install
+RUN mkdir -p /tmp/dev
+COPY package.json yarn.lock /tmp/dev/
+RUN cd /tmp/dev && yarn install --frozen-lockfile
 
-# Install the application dependencies
-RUN npm install
+# Install with --production (exclude devDependencies)
+RUN mkdir -p /tmp/prod
+COPY package.json yarn.lock /tmp/prod/
+RUN cd /tmp/prod && yarn install --frozen-lockfile --production
 
-# Copy the rest of the application files
-COPY . .
+# Copy node_modules from tmp directory
+# Then copy all (non-ignored) project files into the image
+FROM base AS prerelease
+COPY --from=install /tmp/dev/node_modules node_modules
+COPY . ./
 
-# Build the NestJS application
-RUN npm run build
+# Build the application
+ENV NODE_ENV=production
+RUN yarn run build
 
-# Expose the application port
+# Copy production dependencies and source code into final image
+FROM base AS release
+COPY --from=install /tmp/prod/node_modules node_modules
+COPY --from=prerelease /usr/src/api/dist ./
+COPY --from=prerelease /usr/src/api/package.json ./
+
+# Expose port
 EXPOSE ${API_PORT}
 
-# Command to run the application
-CMD ["node", "dist/src/main"]
+CMD [ "node", "dist/src/main.js" ]
