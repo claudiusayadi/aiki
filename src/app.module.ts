@@ -13,6 +13,7 @@ import { UsersModule } from './modules/users/users.module';
 import { validateEnv } from './core/config/app.config';
 import { apiProviders } from './core/config/providers.config';
 import throttlerConfig from './core/config/throttler.config';
+import { DbModule } from './core/db/db.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import throttlerConfig from './core/config/throttler.config';
       validate: validateEnv,
     }),
     ThrottlerModule.forRootAsync(throttlerConfig.asProvider()),
+    DbModule,
     AuthModule,
     EmailModule,
     HealthModule,

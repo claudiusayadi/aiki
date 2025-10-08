@@ -1,7 +1,7 @@
 {
   "name": "aiki",
-  "version": "0.0.1",
-  "description": "",
+  "version": "1.0.0",
+  "description": "Aiki is a modern task management API built with NestJS, empowering users to organize, prioritize, and supercharge productivity through flexible plans - from free to pay-as-you-go to subscription tiers.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -25,6 +25,7 @@
     "migration:revert": "yarn typeorm migration:revert -d dist/src/core/config/data-source"
   },
   "dependencies": {
+    "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -40,8 +41,11 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
+    "handlebars": "^4.7.8",
     "helmet": "^8.1.0",
     "ioredis": "^5.8.1",
+    "nodemailer": "^7.0.9",
+    "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
@@ -59,6 +63,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^7.0.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.2",
