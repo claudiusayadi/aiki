@@ -38,6 +38,14 @@ export class User {
   @Column({ type: 'boolean', default: false })
   verified: boolean;
 
+  @Exclude()
+  @Column({ type: 'varchar', length: 6, nullable: true })
+  verification_code?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamp', nullable: true })
+  verification_code_expires_at?: Date;
+
   @ManyToOne(() => Plan, { eager: true })
   @JoinColumn({ name: 'plan_id' })
   plan: Plan;
@@ -66,7 +74,10 @@ export class User {
   @BeforeUpdate()
   protected async hashPassword() {
     if (this.password) {
-      this.password = await argon.hash(this.password);
+      // Only hash if it's not already hashed
+      if (!this.password.startsWith('$argon2')) {
+        this.password = await argon.hash(this.password);
+      }
     }
   }
 
