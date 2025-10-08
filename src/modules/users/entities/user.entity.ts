@@ -81,7 +81,7 @@ export class User {
     }
   }
 
-  async compare(password: string): Promise<boolean> {
+  public async compare(password: string): Promise<boolean> {
     if (!this.password) throw new Error('User password hash is missing');
     if (!password) throw new Error('Password to compare is missing');
     return await argon.verify(this.password, password);

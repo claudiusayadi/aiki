@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 
 import { IdDto } from '../../core/common/dto/id.dto';
+import { QueryDto } from '../../core/common/dto/query.dto';
 import { RemoveDto } from '../../core/common/dto/remove.dto';
 import { ActiveUser } from '../auth/decorators/active-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -56,8 +57,8 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Get()
   @Roles(UserRole.ADMIN)
-  async findAll(): Promise<User[]> {
-    return this.usersService.findAll();
+  async findAll(@Query() query: QueryDto) {
+    return this.usersService.findAll(query);
   }
 
   @ApiOperation({ summary: 'Get user account by ID - owner/admin' })

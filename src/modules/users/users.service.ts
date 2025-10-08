@@ -2,14 +2,16 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { QueryDto } from '../../core/common/dto/query.dto';
+import { PaginatedResult } from '../../core/common/interfaces/paginated-result.interface';
 import { compareIds } from '../../core/common/utils/compare-ids.util';
+import { PaginationUtil } from '../../core/common/utils/pagination.util';
 import { AuthDto } from '../auth/dto/auth.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -19,8 +21,6 @@ import { IRequestUser } from './interfaces/user.interface';
 
 @Injectable()
 export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
-
   constructor(
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) {}
@@ -32,17 +32,15 @@ export class UsersService {
 
     if (existingUser) throw new ConflictException('Email already exists');
 
-    const user = this.usersRepo.create({
-      ...dto,
-      role: dto.role ?? UserRole.USER,
-    });
+    const user = this.usersRepo.create(dto);
     return await this.usersRepo.save(user);
   }
 
-  public async findAll(): Promise<User[]> {
-    return await this.usersRepo.find({
+  public async findAll(query: QueryDto): Promise<PaginatedResult<User>> {
+    return await PaginationUtil.paginate(this.usersRepo, {
+      pagination: query,
+      sort: query,
       relations: { plan: true },
-      order: { registry: { createdAt: 'DESC' } },
     });
   }
 
@@ -100,28 +98,23 @@ export class UsersService {
     return await this.usersRepo.recover(user);
   }
 
-  /**
-   * Update user's task limits (used by payment service)
-   */
-  public async updateUserTaskLimits(
-    userId: string,
-    additionalTasks?: number | null,
-  ): Promise<User> {
-    const user = await this.usersRepo.findOne({
-      where: { id: userId },
-      relations: { plan: true },
-    });
+  // // Update user's task limits (used by payment service)
+  // public async updateUserTaskLimits(
+  //   userId: string,
+  //   additionalTasks?: number | null,
+  // ): Promise<User> {
+  //   const user = await this.usersRepo.findOne({
+  //     where: { id: userId },
+  //     relations: { plan: true },
+  //   });
 
-    if (!user) throw new NotFoundException('User not found');
+  //   if (!user) throw new NotFoundException('User not found');
 
-    // If switching to unlimited plan (Flow)
-    if (additionalTasks === null) {
-      user.tasks_left = null;
-    } else if (additionalTasks !== undefined) {
-      // Adding tasks (Focus plan)
-      user.tasks_left = (user.tasks_left || 0) + additionalTasks;
-    }
+  //   // Unlimited plan (Flow) / Qty-based plan (Focus)
+  //   if (additionalTasks === null) user.tasks_left = null;
+  //   else if (additionalTasks !== undefined)
+  //     user.tasks_left = (user.tasks_left || 0) + additionalTasks;
 
-    return await this.usersRepo.save(user);
-  }
+  //   return await this.usersRepo.save(user);
+  // }
 }
