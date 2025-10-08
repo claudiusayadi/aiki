@@ -21,4 +21,4 @@ RUN npm run build
 EXPOSE ${API_PORT}
 
 # Command to run the application
-CMD ["sh", "-c", "yarn typeorm migration:run && node dist/src/main.js"]
+CMD ["sh", "-c", "yarn migration:run && node dist/src/main.js"]
