@@ -1,26 +1,312 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { HttpService } from '@nestjs/axios';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as crypto from 'crypto';
+import { firstValueFrom } from 'rxjs';
+import { Repository } from 'typeorm';
+
+import paymentConfig from '../../core/config/payment.config';
+import { Plan } from '../plans/entities/plan.entity';
+import { User } from '../users/entities/user.entity';
+import type { IRequestUser } from '../users/interfaces/user.interface';
+import { InitializePaymentDto } from './dto/initialize-payment.dto';
+import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { Payment } from './entities/payment.entity';
+import { PaymentStatus } from './enums/payment-status.enum';
+import { PaymentType } from './enums/payment-type.enum';
+import type { IPaystackInitializeResponse } from './interfaces/paystack-initialize-response.interface';
+import type { IPaystackSubscriptionResponse } from './interfaces/paystack-subscription-response.interface';
+import type { IPaystackVerifyResponse } from './interfaces/paystack-verify-response.interface';
 
 @Injectable()
 export class PaymentsService {
-  create(createPaymentDto: CreatePaymentDto) {
-    return 'This action adds a new payment';
+  private readonly logger = new Logger(PaymentsService.name);
+
+  constructor(
+    @InjectRepository(Payment)
+    private readonly paymentsRepo: Repository<Payment>,
+    @InjectRepository(User) private readonly usersRepo: Repository<User>,
+    @InjectRepository(Plan) private readonly plansRepo: Repository<Plan>,
+    @Inject(paymentConfig.KEY)
+    private readonly config: ConfigType<typeof paymentConfig>,
+    private readonly httpService: HttpService,
+  ) {}
+
+  public async initializePayment(
+    currentUser: IRequestUser,
+    dto: InitializePaymentDto,
+  ) {
+    // Get plan details
+    const plan = await this.plansRepo.findOne({ where: { id: dto.plan_id } });
+    if (!plan) {
+      throw new NotFoundException('Plan not found');
+    }
+
+    // Get user details
+    const user = await this.usersRepo.findOne({
+      where: { id: currentUser.id },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // For Focus plan (one-time payment)
+    if (!plan.is_subscription) {
+      const quantity = dto.quantity || 1;
+      const amount = Number(plan.price) * quantity * 100; // Convert to kobo
+
+      // Generate unique reference
+      const reference = `${plan.slug}-${user.id}-${Date.now()}`;
+
+      try {
+        // Initialize transaction with Paystack
+        const response = await firstValueFrom(
+          this.httpService.post<IPaystackInitializeResponse>(
+            `${this.config.baseUrl}/transaction/initialize`,
+            {
+              email: user.email,
+              amount: amount.toString(),
+              reference,
+              callback_url: this.config.callbackUrl,
+              metadata: {
+                plan_id: plan.id,
+                plan_name: plan.name,
+                quantity,
+                user_id: user.id,
+              },
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${this.config.secretKey}`,
+                'Content-Type': 'application/json',
+              },
+            },
+          ),
+        );
+
+        // Save payment record
+        const payment = this.paymentsRepo.create({
+          transaction_reference: reference,
+          amount: Number(plan.price) * quantity,
+          currency: 'NGN',
+          status: PaymentStatus.PENDING,
+          payment_type: PaymentType.ONE_TIME,
+          quantity,
+          user: { id: user.id },
+          plan: { id: plan.id },
+          metadata: {
+            paystack_access_code: response.data.data.access_code,
+          },
+        });
+
+        await this.paymentsRepo.save(payment);
+
+        return {
+          authorization_url: response.data.data.authorization_url,
+          access_code: response.data.data.access_code,
+          reference,
+        };
+      } catch (error) {
+        this.logger.error('Paystack initialization failed', error);
+        throw new BadRequestException('Payment initialization failed');
+      }
+    }
+
+    // For Flow plan (subscription)
+    else {
+      // Get Paystack plan code from metadata
+      const paystackPlanCode = plan.metadata?.paystack_plan_code as
+        | string
+        | undefined;
+      if (!paystackPlanCode) {
+        throw new BadRequestException(
+          'Plan is not configured for subscriptions',
+        );
+      }
+
+      const reference = `${plan.slug}-sub-${user.id}-${Date.now()}`;
+
+      try {
+        // Create subscription with Paystack
+        const response = await firstValueFrom(
+          this.httpService.post<IPaystackSubscriptionResponse>(
+            `${this.config.baseUrl}/subscription`,
+            {
+              customer: user.email,
+              plan: paystackPlanCode,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${this.config.secretKey}`,
+                'Content-Type': 'application/json',
+              },
+            },
+          ),
+        );
+
+        // Save payment record
+        const payment = this.paymentsRepo.create({
+          transaction_reference: reference,
+          amount: Number(plan.price),
+          currency: 'NGN',
+          status: PaymentStatus.PENDING,
+          payment_type: PaymentType.SUBSCRIPTION,
+          user: { id: user.id },
+          plan: { id: plan.id },
+          metadata: {
+            subscription_code: response.data.data.subscription_code,
+            paystack_plan_code: paystackPlanCode,
+          },
+        });
+
+        await this.paymentsRepo.save(payment);
+
+        return {
+          subscription_code: response.data.data.subscription_code,
+          email_token: response.data.data.email_token,
+          reference,
+        };
+      } catch (error) {
+        this.logger.error('Paystack subscription failed', error);
+        throw new BadRequestException('Subscription initialization failed');
+      }
+    }
   }
 
-  findAll() {
-    return `This action returns all payments`;
+  /**
+   * Verify payment and update user tasks_left
+   */
+  public async verifyPayment(dto: VerifyPaymentDto) {
+    try {
+      // Verify transaction with Paystack
+      const response = await firstValueFrom(
+        this.httpService.get<IPaystackVerifyResponse>(
+          `${this.config.baseUrl}/transaction/verify/${dto.reference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${this.config.secretKey}`,
+            },
+          },
+        ),
+      );
+
+      if (response.data.data.status !== 'success') {
+        throw new BadRequestException('Payment verification failed');
+      }
+
+      // Find payment record
+      const payment = await this.paymentsRepo.findOne({
+        where: { transaction_reference: dto.reference },
+        relations: ['user', 'plan'],
+      });
+
+      if (!payment) {
+        throw new NotFoundException('Payment record not found');
+      }
+
+      // Update payment status
+      payment.status = PaymentStatus.SUCCESS;
+      payment.metadata = {
+        ...payment.metadata,
+        verified_at: new Date().toISOString(),
+        paystack_response: response.data.data,
+      };
+
+      await this.paymentsRepo.save(payment);
+
+      // Update user tasks_left based on payment type
+      const user = await this.usersRepo.findOne({
+        where: { id: payment.user.id },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (payment.payment_type === PaymentType.ONE_TIME) {
+        // Focus plan: increment tasks_left by quantity
+        user.tasks_left = (user.tasks_left || 0) + (payment.quantity || 1);
+      } else if (payment.payment_type === PaymentType.SUBSCRIPTION) {
+        // Flow plan: set tasks_left to null (unlimited)
+        user.tasks_left = null;
+      }
+
+      await this.usersRepo.save(user);
+
+      return {
+        status: 'success',
+        message: 'Payment verified successfully',
+        payment,
+      };
+    } catch (error) {
+      this.logger.error('Payment verification failed', error);
+      throw new BadRequestException('Payment verification failed');
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} payment`;
+  /**
+   * Handle Paystack webhooks
+   */
+  public async handleWebhook(
+    payload: { event: string; data: { reference: string } },
+    signature: string,
+  ) {
+    // Verify webhook signature
+    const hash = crypto
+      .createHmac('sha512', this.config.secretKey || '')
+      .update(JSON.stringify(payload))
+      .digest('hex');
+
+    if (hash !== signature) {
+      throw new BadRequestException('Invalid signature');
+    }
+
+    const event = payload.event;
+
+    // Handle charge.success event
+    if (event === 'charge.success') {
+      const reference = payload.data.reference;
+
+      // Auto-verify payment
+      await this.verifyPayment({ reference });
+
+      return { status: 'success', message: 'Webhook processed' };
+    }
+
+    return { status: 'ignored', message: 'Event not handled' };
   }
 
-  update(id: number, updatePaymentDto: UpdatePaymentDto) {
-    return `This action updates a #${id} payment`;
+  /**
+   * Get all payments for current user
+   */
+  public async findAll(currentUser: IRequestUser) {
+    return await this.paymentsRepo.find({
+      where: { user: { id: currentUser.id } },
+      relations: ['plan'],
+      order: { registry: { createdAt: 'DESC' } },
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} payment`;
+  /**
+   * Get payment by ID
+   */
+  public async findOne(id: string, currentUser: IRequestUser) {
+    const payment = await this.paymentsRepo.findOne({
+      where: { id, user: { id: currentUser.id } },
+      relations: ['plan', 'user'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return payment;
   }
 }
