@@ -14,7 +14,7 @@ export class HealthController {
   @Public()
   @HealthCheck()
   @Get()
-  check() {
+  public check() {
     return this.healthService.check();
   }
 
@@ -22,7 +22,7 @@ export class HealthController {
   @ApiOkResponse({ description: 'Detailed system metrics.' })
   @Public()
   @Get('metrics')
-  getMetrics() {
+  public getMetrics() {
     return this.healthService.getMetrics();
   }
 }

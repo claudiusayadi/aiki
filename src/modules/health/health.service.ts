@@ -17,24 +17,24 @@ export class HealthService {
     private readonly disk: DiskHealthIndicator,
   ) {}
 
-  check() {
+  public async check() {
     return this.health.check([
       // Database health check
-      () => this.db.pingCheck('database'),
+      async () => await this.db.pingCheck('database'),
 
       // Memory health check (alert if using more than 300MB)
-      () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
+      async () => await this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
 
       // Disk health check (alert if disk usage > 80%)
-      () =>
-        this.disk.checkStorage('storage', {
+      async () =>
+        await this.disk.checkStorage('storage', {
           path: '/',
           thresholdPercent: 0.8,
         }),
     ]);
   }
 
-  async getMetrics() {
+  public async getMetrics() {
     try {
       const healthResult = await this.check();
 
