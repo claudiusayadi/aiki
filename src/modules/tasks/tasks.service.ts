@@ -9,7 +9,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { QueryDto } from '../../core/common/dto/query.dto';
+import { PaginatedResult } from '../../core/common/interfaces/paginated-result.interface';
 import { compareIds } from '../../core/common/utils/compare-ids.util';
+import { PaginationUtil } from '../../core/common/utils/pagination.util';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums/roles.enum';
 import { IRequestUser } from '../users/interfaces/user.interface';
@@ -45,7 +48,6 @@ export class TasksService {
     if (user.tasks_left !== null) {
       user.tasks_left -= 1;
       await this.usersRepo.save(user);
-      this.logger.log(`User ${user.email} tasks remaining: ${user.tasks_left}`);
     }
 
     const task = this.tasksRepo.create({
@@ -54,22 +56,23 @@ export class TasksService {
       user,
     });
 
-    const savedTask = await this.tasksRepo.save(task);
-    this.logger.log(`Task created: ${savedTask.id} by user ${user.email}`);
-
-    return savedTask;
+    return await this.tasksRepo.save(task);
   }
 
-  public async findAll(currentUser: IRequestUser) {
+  public async findAll(
+    currentUser: IRequestUser,
+    query: QueryDto,
+  ): Promise<PaginatedResult<Task>> {
     const where =
       currentUser.role === UserRole.ADMIN
         ? {}
         : { user: { id: currentUser.id } };
 
-    return await this.tasksRepo.find({
+    return await PaginationUtil.paginate(this.tasksRepo, {
+      pagination: query,
+      sort: query,
       where,
       relations: { user: true },
-      order: { registry: { createdAt: 'DESC' } },
     });
   }
 
@@ -91,23 +94,17 @@ export class TasksService {
     currentUser: IRequestUser,
     dto: UpdateTaskDto,
   ) {
-    const existingTask = await this.tasksRepo.findOneOrFail({
-      where: { id },
-      relations: { user: true },
-    });
+    const task = await this.findOne(id, currentUser);
 
-    if (currentUser.role !== UserRole.ADMIN) {
-      compareIds(currentUser.id, existingTask.user.id);
-    }
-
-    const task = await this.tasksRepo.preload({
-      id,
+    const updatedTask = await this.tasksRepo.preload({
+      id: task.id,
       ...dto,
       due_at: dto.due_at ? new Date(dto.due_at) : undefined,
     });
 
-    if (!task) throw new NotFoundException('Task not found');
-    return await this.tasksRepo.save(task);
+    if (!updatedTask) throw new NotFoundException('Task not found');
+
+    return await this.tasksRepo.save(updatedTask);
   }
 
   public async remove(

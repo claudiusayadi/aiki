@@ -18,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 
 import { IdDto } from '../../core/common/dto/id.dto';
+import { QueryDto } from '../../core/common/dto/query.dto';
 import { RemoveDto } from '../../core/common/dto/remove.dto';
 import { ActiveUser } from '../auth/decorators/active-user.decorator';
 import type { IRequestUser } from '../users/interfaces/user.interface';
@@ -47,8 +48,8 @@ export class TasksController {
   })
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Get()
-  async findAll(@ActiveUser() user: IRequestUser) {
-    return await this.tasksService.findAll(user);
+  async findAll(@ActiveUser() user: IRequestUser, @Query() query: QueryDto) {
+    return await this.tasksService.findAll(user, query);
   }
 
   @ApiOperation({ summary: 'Get task by ID - owner/admin' })
