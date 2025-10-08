@@ -120,9 +120,16 @@ export class PaymentsService {
 
     // Subscription (flow plan)
     else {
-      // Get Paystack plan code from metadata
       const planCode = plan.metadata?.paystack_plan_code as string | undefined;
+
+      this.logger.log(
+        `Initializing subscription for user ${user.email} - Plan: ${plan.slug}, Code: ${planCode}`,
+      );
+
       if (!planCode) {
+        this.logger.error(
+          `Flow plan missing paystack_plan_code in metadata: ${JSON.stringify(plan.metadata)}`,
+        );
         throw new BadRequestException(
           'Plan is not configured for subscriptions',
         );
@@ -171,7 +178,10 @@ export class PaymentsService {
           reference,
         };
       } catch (error) {
-        this.logger.error('Paystack subscription failed', error);
+        this.logger.error(
+          `Paystack subscription failed for plan ${plan.slug}`,
+          error instanceof Error ? error.stack : String(error),
+        );
         throw new BadRequestException('Subscription initialization failed');
       }
     }
