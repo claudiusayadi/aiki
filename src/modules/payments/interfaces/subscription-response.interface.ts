@@ -1,4 +1,4 @@
-export interface IPaystackSubscriptionResponse {
+export interface IPaymentSubscriptionResponse {
   status: boolean;
   message: string;
   data: {

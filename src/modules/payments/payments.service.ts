@@ -21,9 +21,9 @@ import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { Payment } from './entities/payment.entity';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentType } from './enums/payment-type.enum';
-import type { IPaystackInitializeResponse } from './interfaces/paystack-initialize-response.interface';
-import type { IPaystackSubscriptionResponse } from './interfaces/paystack-subscription-response.interface';
-import type { IPaystackVerifyResponse } from './interfaces/paystack-verify-response.interface';
+import type { IPaymentInitializeResponse } from './interfaces/initialize-response.interface';
+import type { IPaymentSubscriptionResponse } from './interfaces/subscription-response.interface';
+import type { IPaymentVerificationResponse } from './interfaces/verify-response.interface';
 
 @Injectable()
 export class PaymentsService {
@@ -68,7 +68,7 @@ export class PaymentsService {
       try {
         // Initialize transaction with Paystack
         const response = await firstValueFrom(
-          this.httpService.post<IPaystackInitializeResponse>(
+          this.httpService.post<IPaymentInitializeResponse>(
             `${this.config.baseUrl}/transaction/initialize`,
             {
               email: user.email,
@@ -136,7 +136,7 @@ export class PaymentsService {
       try {
         // Create subscription with Paystack
         const response = await firstValueFrom(
-          this.httpService.post<IPaystackSubscriptionResponse>(
+          this.httpService.post<IPaymentSubscriptionResponse>(
             `${this.config.baseUrl}/subscription`,
             {
               customer: user.email,
@@ -187,7 +187,7 @@ export class PaymentsService {
     try {
       // Verify transaction with Paystack
       const response = await firstValueFrom(
-        this.httpService.get<IPaystackVerifyResponse>(
+        this.httpService.get<IPaymentVerificationResponse>(
           `${this.config.baseUrl}/transaction/verify/${dto.reference}`,
           {
             headers: {

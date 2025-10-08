@@ -1,9 +1,9 @@
-export interface IPaystackInitializeResponse {
+export interface IPaymentInitializeResponse {
   status: boolean;
   message: string;
   data: {
-    authorization_url: string;
     access_code: string;
+    authorization_url: string;
     reference: string;
   };
 }
