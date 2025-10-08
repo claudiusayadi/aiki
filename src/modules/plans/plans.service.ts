@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 
@@ -9,6 +9,8 @@ import { Plan } from './entities/plan.entity';
 
 @Injectable()
 export class PlansService implements OnModuleInit {
+  private readonly logger = new Logger(PlansService.name);
+
   constructor(
     @InjectRepository(Plan)
     private readonly planRepo: Repository<Plan>,
@@ -77,6 +79,6 @@ export class PlansService implements OnModuleInit {
     ];
 
     await this.planRepo.save(plans);
-    console.log('Default plans seeded.');
+    this.logger.log('Default plans seeded.');
   }
 }
