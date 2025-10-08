@@ -36,10 +36,10 @@ export class CreateTaskDto {
   status?: TaskStatus;
 
   /**
-   * Task due date
+   * Task due date (ISO 8601 format)
    * @example "2025-10-15T10:00:00Z"
    */
   @IsDateString()
   @IsOptional()
-  due_at?: Date;
+  due_at?: string;
 }

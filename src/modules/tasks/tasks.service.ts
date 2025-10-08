@@ -43,6 +43,7 @@ export class TasksService {
 
     const task = this.tasksRepo.create({
       ...dto,
+      due_at: dto.due_at ? new Date(dto.due_at) : undefined,
       user,
     });
 
@@ -96,6 +97,7 @@ export class TasksService {
     const task = await this.tasksRepo.preload({
       id,
       ...dto,
+      due_at: dto.due_at ? new Date(dto.due_at) : undefined,
     });
 
     if (!task) throw new NotFoundException('Task not found');
