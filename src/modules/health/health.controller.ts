@@ -17,4 +17,12 @@ export class HealthController {
   check() {
     return this.healthService.check();
   }
+
+  @ApiOperation({ summary: 'Get detailed metrics' })
+  @ApiOkResponse({ description: 'Detailed system metrics.' })
+  @Public()
+  @Get('metrics')
+  getMetrics() {
+    return this.healthService.getMetrics();
+  }
 }
