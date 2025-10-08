@@ -9,42 +9,30 @@ export class EmailService {
 
   constructor(private readonly mailerService: MailerService) {}
 
-  async sendEmail(options: EmailOptions): Promise<void> {
+  public async sendEmail(options: EmailOptions): Promise<void> {
     try {
-      await this.mailerService.sendMail({
-        to: options.to,
-        subject: options.subject,
-        text: options.text,
-        html: options.html,
-      });
+      await this.mailerService.sendMail(options);
 
       this.logger.log(`Email sent successfully to ${options.to}`);
     } catch (error) {
-      this.logger.error(`Failed to send email to ${options.to}:`, error);
-      throw error;
-    }
-  }
-
-  async sendVerificationEmail(
-    email: string,
-    code: string,
-    name?: string,
-  ): Promise<void> {
-    try {
-      await this.mailerService.sendMail({
-        to: email,
-        subject: 'Verify Your Email - Aiki',
-        template: 'verification',
-        context: { code, name },
-      });
-
-      this.logger.log(`Verification email sent successfully to ${email}`);
-    } catch (error) {
       this.logger.error(
-        `Failed to send verification email to ${email}`,
+        `Failed to send email to ${options.to}`,
         error instanceof Error ? error.stack : String(error),
       );
       throw error;
     }
+  }
+
+  public async sendVerificationEmail(
+    email: string,
+    code: string,
+    name?: string,
+  ): Promise<void> {
+    await this.sendEmail({
+      to: email,
+      subject: 'Verify Your Email - Aiki',
+      template: 'verification',
+      context: { code, name },
+    });
   }
 }
