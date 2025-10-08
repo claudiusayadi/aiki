@@ -42,7 +42,7 @@ export const envSchema = z.object({
   EMAIL_PASSWORD: z.string().min(1, 'EMAIL_PASSWORD is required!'),
   EMAIL_FROM: z.string().min(1, 'EMAIL_FROM is required!'),
   EMAIL_SENDER: z.string().min(1, 'EMAIL_SENDER is required!'),
-  EMAIL_SECURE: z.string().min(1, 'EMAIL_AUTH is required!'),
+  EMAIL_SECURE: z.coerce.boolean(),
 
   PAYSTACK_SECRET_KEY: z.string().min(1, 'PAYSTACK_SECRET_KEY is required!'),
   PAYSTACK_PUBLIC_KEY: z.string().min(1, 'PAYSTACK_PUBLIC_KEY is required!'),
