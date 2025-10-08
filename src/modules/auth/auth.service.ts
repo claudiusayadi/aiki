@@ -88,10 +88,17 @@ export class AuthService {
     // Get the default starter plan
     const starterPlan = await this.plansService.findOne('', 'starter');
 
+    if (!starterPlan) {
+      throw new Error(
+        'Starter plan not found. Please ensure default plans are seeded.',
+      );
+    }
+
     const user = this.usersRepo.create({
       email,
       password,
       plan: starterPlan,
+      tasks_left: starterPlan.task_limit,
     });
     const savedUser = await this.usersRepo.save(user);
 
