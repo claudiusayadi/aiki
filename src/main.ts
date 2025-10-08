@@ -20,12 +20,6 @@ async function bootstrap() {
   const prefix = `api/v${versionMajor}`;
   const title: string = pkg?.name?.replace(/-/g, ' ').toUpperCase() ?? '';
 
-  // Dynamically determine protocol and host based on environment
-  const isDevelopment = env === 'development' || env === 'test';
-  const protocol = isDevelopment ? 'http' : 'https';
-  const host = isDevelopment ? `localhost:${port}` : ApiConfig.DOMAIN;
-  const baseUrl = `${protocol}://${host}`;
-
   app.use(helmet(helmetConfig));
   app.enableCors({
     origin: '*',
@@ -41,7 +35,6 @@ async function bootstrap() {
     .setDescription(pkg.description)
     .addCookieAuth(tokensConfig.access)
     .setVersion(pkg.version)
-    .addServer(baseUrl, `${env.charAt(0).toUpperCase() + env.slice(1)} server`)
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -54,8 +47,12 @@ async function bootstrap() {
   });
 
   await app.listen(port ?? 3000);
-  logger.log(`📚 Swagger documentation available at ${baseUrl}/${prefix}/docs`);
-  logger.log(`🚀 Application is running on: ${baseUrl}/${prefix}`);
+  logger.log(
+    `📚 Swagger documentation available at http://localhost:${port}/${prefix}/docs`,
+  );
+  logger.log(
+    `🚀 Application is running on: http://localhost:${port}/${prefix}`,
+  );
   logger.log(`🌍 Environment: ${env}`);
 }
 
