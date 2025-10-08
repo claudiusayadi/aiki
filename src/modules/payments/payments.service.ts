@@ -43,27 +43,21 @@ export class PaymentsService {
     currentUser: IRequestUser,
     dto: InitializePaymentDto,
   ) {
-    // Get plan details
     const plan = await this.plansRepo.findOne({ where: { id: dto.plan_id } });
-    if (!plan) {
-      throw new NotFoundException('Plan not found');
-    }
+    if (!plan) throw new NotFoundException('Plan not found');
 
-    // Get user details
     const user = await this.usersRepo.findOne({
       where: { id: currentUser.id },
     });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
 
-    // For Focus plan (one-time payment)
+    // One-time payment (focus plan)
     if (!plan.is_subscription) {
       const quantity = dto.quantity || 1;
-      const amount = Number(plan.price) * quantity * 100; // Convert to kobo
+      const amount = Number(plan.price) * quantity * 100; // In kobo
 
       // Generate unique reference
-      const reference = `${plan.slug}-${user.id}-${Date.now()}`;
+      const reference = `aiki-${plan.slug}-${user.id}-${Date.now()}`;
 
       try {
         // Initialize transaction with Paystack
@@ -109,8 +103,8 @@ export class PaymentsService {
         await this.paymentsRepo.save(payment);
 
         return {
-          authorization_url: response.data.data.authorization_url,
           access_code: response.data.data.access_code,
+          authorization_url: response.data.data.authorization_url,
           reference,
         };
       } catch (error) {
@@ -119,13 +113,11 @@ export class PaymentsService {
       }
     }
 
-    // For Flow plan (subscription)
+    // Subscription (flow plan)
     else {
       // Get Paystack plan code from metadata
-      const paystackPlanCode = plan.metadata?.paystack_plan_code as
-        | string
-        | undefined;
-      if (!paystackPlanCode) {
+      const planCode = plan.metadata?.paystack_plan_code as string | undefined;
+      if (!planCode) {
         throw new BadRequestException(
           'Plan is not configured for subscriptions',
         );
@@ -140,7 +132,7 @@ export class PaymentsService {
             `${this.config.baseUrl}/subscription`,
             {
               customer: user.email,
-              plan: paystackPlanCode,
+              plan: planCode,
             },
             {
               headers: {
@@ -162,7 +154,7 @@ export class PaymentsService {
           plan: { id: plan.id },
           metadata: {
             subscription_code: response.data.data.subscription_code,
-            paystack_plan_code: paystackPlanCode,
+            paystack_plan_code: planCode,
           },
         });
 
