@@ -16,27 +16,25 @@ export class PlansService implements OnModuleInit {
     await this.seedDefaultPlans();
   }
 
-  createPlan(dto: CreatePlanDto) {
+  create(dto: CreatePlanDto) {
     return this.planRepo.save(dto);
   }
 
-  getAllPlans() {
+  findAll() {
     return this.planRepo.find();
   }
 
-  findBySlug(slug: string) {
-    return this.planRepo.findOne({ where: { slug } });
+  findOne(id: string, slug?: string) {
+    return this.planRepo.findOneOrFail({
+      where: slug ? { slug } : { id },
+    });
   }
 
-  getPlanById(id: string) {
-    return this.planRepo.findOneOrFail({ where: { id } });
-  }
-
-  updatePlan(id: string, dto: UpdatePlanDto) {
+  update(id: string, dto: UpdatePlanDto) {
     return this.planRepo.update(id, dto);
   }
 
-  deletePlan(id: string) {
+  remove(id: string) {
     return this.planRepo.delete(id);
   }
 
