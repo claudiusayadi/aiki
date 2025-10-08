@@ -10,6 +10,7 @@ export const envSchema = z.object({
     .default('development'),
   API_PORT: z.coerce.number().min(1, 'API_PORT is required!'),
   API_TOKEN: z.string().min(1, 'API_TOKEN is required!'),
+  DOMAIN: z.string().optional(),
 
   DB_URL: z.string().min(1, 'DB_URL is required!'),
   REDIS_HOST: z.string().optional(),
