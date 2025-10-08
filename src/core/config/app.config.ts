@@ -47,7 +47,11 @@ export const envSchema = z.object({
   PAYSTACK_SECRET_KEY: z.string().min(1, 'PAYSTACK_SECRET_KEY is required!'),
   PAYSTACK_PUBLIC_KEY: z.string().min(1, 'PAYSTACK_PUBLIC_KEY is required!'),
   PAYSTACK_BASE_URL: z.string().min(1, 'PAYSTACK_BASE_URL is required!'),
-  PAYSTACK_SUCCESS_URL: z.string().min(1, 'PAYSTACK_SUCCESS_URL is required!'),
+  PAYSTACK_CALLBACK_URL: z
+    .string()
+    .min(1, 'PAYSTACK_CALLBACK_URL is required!'),
+  PAYSTACK_WEBHOOK_URL: z.string().min(1, 'PAYSTACK_WEBHOOK_URL is required!'),
+  FLOW_PLAN_CODE: z.string().min(1, 'FLOW_PLAN_CODE is required!'),
 });
 
 export type ApiConfig = z.infer<typeof envSchema>;
