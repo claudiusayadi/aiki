@@ -25,6 +25,9 @@ export class Plan {
   @Column({ type: 'boolean', default: false })
   is_subscription: boolean;
 
+  @Column({ type: 'jsonb', nullable: true })
+  metadata?: Record<string, any>;
+
   @Column(() => RegistryDates, { prefix: false })
   public registry: RegistryDates;
 }
