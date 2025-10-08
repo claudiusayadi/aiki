@@ -1,20 +1,23 @@
-FROM node:22-alpine AS base
-WORKDIR /usr/src/api
-ENV NODE_ENV=production
+# Use the official Node.js image as the base image
+FROM node:22-alpine
 
-FROM base AS deps
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+# Set the working directory inside the container
+WORKDIR /usr/src/app
 
-FROM base AS build
-COPY --from=deps /usr/src/api/node_modules ./node_modules
+# Copy package.json and package-lock.json to the working directory
+COPY package*.json ./
+
+# Install the application dependencies
+RUN npm install
+
+# Copy the rest of the application files
 COPY . .
-RUN yarn build
 
-FROM node:22-alpine AS release
-WORKDIR /usr/src/api
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile --production
-COPY --from=build /usr/src/api/dist ./dist
+# Build the NestJS application
+RUN npm run build
+
+# Expose the application port
 EXPOSE ${API_PORT}
-CMD ["node", "dist/main.js"]
+
+# Command to run the application
+CMD ["node", "dist/main"]

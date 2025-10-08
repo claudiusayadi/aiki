@@ -1,7 +1,7 @@
 name: aiki
 services:
   aiki-api:
-    container_name: aiki-api
+    container_name: "aiki-api"
     image: ghcr.io/claudiusayadi/aiki-api:latest
     restart: unless-stopped
     security_opt:
