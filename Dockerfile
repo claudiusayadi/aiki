@@ -19,6 +19,7 @@ RUN npm run build
 
 # Expose the application port
 EXPOSE ${API_PORT}
+EXPOSE ${EMAIL_PORT}
 
 # Command to run the application
 CMD ["sh", "-c", "yarn migration:run && node dist/src/main.js"]
