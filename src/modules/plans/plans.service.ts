@@ -1,8 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreatePlanDto } from 'src/modules/plans/dto/create-plan.dto';
-import { UpdatePlanDto } from 'src/modules/plans/dto/update-plan.dto';
-import { Repository } from 'typeorm';
+import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+
+import { ApiConfig } from 'src/core/config/app.config';
+import { CreatePlanDto } from '../plans/dto/create-plan.dto';
+import { UpdatePlanDto } from '../plans/dto/update-plan.dto';
 import { Plan } from './entities/plan.entity';
 
 @Injectable()
@@ -16,25 +18,25 @@ export class PlansService implements OnModuleInit {
     await this.seedDefaultPlans();
   }
 
-  create(dto: CreatePlanDto) {
+  create(dto: CreatePlanDto): Promise<Plan> {
     return this.planRepo.save(dto);
   }
 
-  findAll() {
+  findAll(): Promise<Plan[]> {
     return this.planRepo.find();
   }
 
-  findOne(id: string, slug?: string) {
+  findOne(id: string, slug?: string): Promise<Plan> {
     return this.planRepo.findOneOrFail({
       where: slug ? { slug } : { id },
     });
   }
 
-  update(id: string, dto: UpdatePlanDto) {
+  update(id: string, dto: UpdatePlanDto): Promise<UpdateResult> {
     return this.planRepo.update(id, dto);
   }
 
-  remove(id: string) {
+  remove(id: string): Promise<DeleteResult> {
     return this.planRepo.delete(id);
   }
 
@@ -68,6 +70,9 @@ export class PlansService implements OnModuleInit {
         task_limit: null,
         price: 10000,
         is_subscription: true,
+        metadata: {
+          paystack_plan_code: ApiConfig.FLOW_PLAN_CODE,
+        },
       },
     ];
 
