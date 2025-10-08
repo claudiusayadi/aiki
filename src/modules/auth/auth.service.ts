@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -11,13 +12,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { IPayload } from 'src/core/common/interfaces/payload.interface';
+import emailConfig from 'src/core/config/email.config';
 import jwtConfig from 'src/core/config/jwt.config';
 import { RedisService } from 'src/core/redis/redis.service';
+
+import { EmailService } from '../email/email.service';
+import { PlansService } from '../plans/plans.service';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums/roles.enum';
 import type { IRequestUser } from '../users/interfaces/user.interface';
 import { AuthDto } from './dto/auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Injectable()
 export class AuthService {
@@ -25,22 +32,44 @@ export class AuthService {
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
     @Inject(jwtConfig.KEY)
-    private readonly config: ConfigType<typeof jwtConfig>,
+    private readonly jwtCfg: ConfigType<typeof jwtConfig>,
+    @Inject(emailConfig.KEY)
+    private readonly emailCfg: ConfigType<typeof emailConfig>,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
+    private readonly emailService: EmailService,
+    private readonly plansService: PlansService,
   ) {}
 
   async validateLocal(dto: AuthDto) {
     const { email, password } = dto;
     const user = await this.usersRepo.findOne({
       where: { email },
-      select: { id: true, password: true },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        verified: true,
+        role: true,
+      },
     });
 
-    if (user && (await user.compare(password)))
-      return this.createRequestUser(user);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credential');
+    }
 
-    throw new UnauthorizedException('Invalid credential');
+    const isPasswordValid = await user.compare(password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credential');
+    }
+
+    if (!user.verified) {
+      throw new UnauthorizedException(
+        'Please verify your email before signing in',
+      );
+    }
+
+    return this.createRequestUser(user);
   }
 
   async validateJwt(payload: IPayload) {
@@ -48,6 +77,30 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid token');
 
     return this.createRequestUser(user);
+  }
+
+  async signup(dto: AuthDto) {
+    const { email, password } = dto;
+    const existing = await this.usersRepo.findOneBy({ email });
+
+    if (existing) throw new ConflictException('Account already exists!');
+
+    // Get the default starter plan
+    const starterPlan = await this.plansService.findOne('', 'starter');
+
+    const user = this.usersRepo.create({
+      email,
+      password,
+      plan: starterPlan,
+    });
+    const savedUser = await this.usersRepo.save(user);
+
+    // Generate and send verification code
+    await this.sendVerificationCode(savedUser);
+
+    return {
+      message: `A verification code has been sent to ${email}. Please check your email and verify your account at /api/v1/auth/verify-email`,
+    };
   }
 
   async signin(user: IRequestUser) {
@@ -61,7 +114,7 @@ export class AuthService {
     }
 
     const decoded = this.jwtService.verify<IPayload>(refreshToken, {
-      secret: this.config.secret,
+      secret: this.jwtCfg.secret,
     });
 
     if (!decoded) {
@@ -79,16 +132,6 @@ export class AuthService {
 
   async signout(userId: string) {
     await this.redisService.invalidateRefreshToken(userId);
-  }
-
-  async signup(dto: AuthDto) {
-    const { email, password } = dto;
-    const existing = await this.usersRepo.findOneBy({ email });
-
-    if (existing) throw new ConflictException('Account already exists!');
-    const user = this.usersRepo.create({ email, password });
-
-    return await this.usersRepo.save(user);
   }
 
   async changePassword(id: string, dto: ChangePasswordDto) {
@@ -143,22 +186,105 @@ export class AuthService {
 
     const accessToken = await this.signToken(
       payload,
-      this.config.secret,
-      this.config.signOptions.expiresIn,
+      this.jwtCfg.secret,
+      this.jwtCfg.signOptions.expiresIn,
     );
 
     const refreshToken = await this.signToken(
       payload,
-      this.config.secret,
-      this.config.refreshTokenTtl,
+      this.jwtCfg.secret,
+      this.jwtCfg.refreshTokenTtl,
     );
 
     await this.redisService.setRefreshToken(
       user.id,
       refreshToken,
-      this.config.refreshTokenTtl,
+      this.jwtCfg.refreshTokenTtl,
     );
 
     return { accessToken, refreshToken };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto) {
+    const { email, code } = dto;
+    const user = await this.usersRepo.findOne({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        verified: true,
+        verification_code: true,
+        verification_code_expires_at: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.verified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    if (!user.verification_code || !user.verification_code_expires_at) {
+      throw new BadRequestException(
+        'No verification code found. Please request a new one',
+      );
+    }
+
+    if (new Date() > user.verification_code_expires_at) {
+      throw new BadRequestException(
+        'Verification code has expired. Please request a new one',
+      );
+    }
+
+    if (user.verification_code !== code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    // Mark user as verified
+    user.verified = true;
+    user.verification_code = undefined;
+    user.verification_code_expires_at = undefined;
+    await this.usersRepo.save(user);
+
+    return {
+      message:
+        'Email verified successfully. You can now sign in at /api/v1/auth/signin',
+    };
+  }
+
+  async resendVerificationCode(dto: ResendVerificationDto) {
+    const { email } = dto;
+    const user = await this.usersRepo.findOne({ where: { email } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.verified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    await this.sendVerificationCode(user);
+
+    return {
+      message: 'Verification code sent successfully. Please check your email.',
+    };
+  }
+
+  private async sendVerificationCode(user: User): Promise<void> {
+    const code = this.generateVerificationCode();
+    const expiresAt = new Date(Date.now() + this.emailCfg.verificationCodeTtl);
+
+    user.verification_code = code;
+    user.verification_code_expires_at = expiresAt;
+    await this.usersRepo.save(user);
+
+    await this.emailService.sendVerificationEmail(user.email, code, user.name);
+  }
+
+  private generateVerificationCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 }

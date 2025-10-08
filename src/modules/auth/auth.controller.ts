@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
@@ -31,6 +32,8 @@ import { ActiveUser } from './decorators/active-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { AuthDto } from './dto/auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 
 @Controller('auth')
@@ -110,5 +113,29 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(user.id, dto);
+  }
+
+  @ApiOperation({ summary: 'Verify email with code' })
+  @ApiOkResponse({ description: 'Email verified successfully' })
+  @ApiBadRequestResponse({
+    description: 'Invalid or expired verification code',
+  })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @HttpCode(HttpStatus.OK)
+  @Public()
+  @Post('verify-email')
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto);
+  }
+
+  @ApiOperation({ summary: 'Resend verification code' })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Email already verified' })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @HttpCode(HttpStatus.OK)
+  @Public()
+  @Post('resend-verification')
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerificationCode(dto);
   }
 }
