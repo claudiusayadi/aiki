@@ -44,7 +44,7 @@ export class AuthService {
     private readonly plansService: PlansService,
   ) {}
 
-  async validateLocal(dto: AuthDto) {
+  public async validateLocal(dto: AuthDto) {
     const { email, password } = dto;
     const user = await this.usersRepo.findOne({
       where: { email },
@@ -71,14 +71,14 @@ export class AuthService {
     return this.createRequestUser(user);
   }
 
-  async validateJwt(payload: IPayload) {
+  public async validateJwt(payload: IPayload) {
     const user = await this.usersRepo.findOneBy({ id: payload.sub });
     if (!user) throw new UnauthorizedException('Invalid token');
 
     return this.createRequestUser(user);
   }
 
-  async signup(dto: AuthDto) {
+  public async signup(dto: AuthDto) {
     const { email, password } = dto;
     const existing = await this.usersRepo.findOneBy({ email });
 
@@ -115,14 +115,14 @@ export class AuthService {
     };
   }
 
-  async signin(user: IRequestUser) {
+  public async signin(user: IRequestUser) {
     // Update last login timestamp
     await this.usersRepo.update(user.id, { lastLoginAt: new Date() });
 
     return this.generateTokens(user);
   }
 
-  async refreshTokens(userId: string, refreshToken: string) {
+  public async refreshTokens(userId: string, refreshToken: string) {
     const redisToken = await this.redisService.getRefreshToken(userId);
     if (!redisToken || redisToken !== refreshToken) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -143,11 +143,11 @@ export class AuthService {
     return this.generateTokens(payload, refreshToken);
   }
 
-  async signout(userId: string) {
+  public async signout(userId: string) {
     await this.redisService.invalidateRefreshToken(userId);
   }
 
-  async changePassword(id: string, dto: ChangePasswordDto) {
+  public async changePassword(id: string, dto: ChangePasswordDto) {
     const { newPassword, currentPassword } = dto;
     const user = await this.usersRepo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found!');
@@ -165,7 +165,7 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
-  async assignRole(id: string, role: UserRole) {
+  public async assignRole(id: string, role: UserRole) {
     const user = await this.usersRepo.preload({ id, role });
 
     if (!user) throw new NotFoundException('User not found');
@@ -173,53 +173,7 @@ export class AuthService {
     return this.usersRepo.save(user);
   }
 
-  createRequestUser(user: User): IRequestUser {
-    const { id, email, role } = user;
-    return { id, email, role };
-  }
-
-  private async signToken(
-    payload: IPayload,
-    secret: string,
-    expiresIn: number,
-  ) {
-    return this.jwtService.signAsync(payload, { secret, expiresIn });
-  }
-
-  async generateTokens(user: IRequestUser, oldRefreshToken?: string) {
-    // Invalidate old refresh token if provided
-    if (oldRefreshToken) {
-      await this.redisService.invalidateRefreshToken(user.id);
-    }
-
-    const payload: IPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const accessToken = await this.signToken(
-      payload,
-      this.jwtCfg.secret,
-      this.jwtCfg.signOptions.expiresIn,
-    );
-
-    const refreshToken = await this.signToken(
-      payload,
-      this.jwtCfg.secret,
-      this.jwtCfg.refreshTokenTtl,
-    );
-
-    await this.redisService.setRefreshToken(
-      user.id,
-      refreshToken,
-      this.jwtCfg.refreshTokenTtl,
-    );
-
-    return { accessToken, refreshToken };
-  }
-
-  async verifyEmail(dto: VerifyEmailDto) {
+  public async verifyEmail(dto: VerifyEmailDto) {
     const { email, code } = dto;
     const user = await this.usersRepo.findOne({
       where: { email },
@@ -263,7 +217,7 @@ export class AuthService {
     };
   }
 
-  async resendVerificationCode(dto: ResendVerificationDto) {
+  public async resendVerificationCode(dto: ResendVerificationDto) {
     const { email } = dto;
     const user = await this.usersRepo.findOne({ where: { email } });
 
@@ -275,6 +229,52 @@ export class AuthService {
     return {
       message: 'Verification code sent successfully. Please check your email.',
     };
+  }
+
+  private createRequestUser(user: User): IRequestUser {
+    const { id, email, role } = user;
+    return { id, email, role };
+  }
+
+  private async signToken(
+    payload: IPayload,
+    secret: string,
+    expiresIn: number,
+  ) {
+    return this.jwtService.signAsync(payload, { secret, expiresIn });
+  }
+
+  private async generateTokens(user: IRequestUser, oldRefreshToken?: string) {
+    // Invalidate old refresh token if provided
+    if (oldRefreshToken) {
+      await this.redisService.invalidateRefreshToken(user.id);
+    }
+
+    const payload: IPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = await this.signToken(
+      payload,
+      this.jwtCfg.secret,
+      this.jwtCfg.signOptions.expiresIn,
+    );
+
+    const refreshToken = await this.signToken(
+      payload,
+      this.jwtCfg.secret,
+      this.jwtCfg.refreshTokenTtl,
+    );
+
+    await this.redisService.setRefreshToken(
+      user.id,
+      refreshToken,
+      this.jwtCfg.refreshTokenTtl,
+    );
+
+    return { accessToken, refreshToken };
   }
 
   private async sendVerificationCode(user: User): Promise<void> {

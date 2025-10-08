@@ -4,7 +4,6 @@ import { CreateUserDto } from '../../users/dto/create-user.dto';
 
 export class VerifyEmailDto extends PickType(CreateUserDto, [
   'email',
-  'password',
 ] as const) {
   /**
    * 6-digit verification code

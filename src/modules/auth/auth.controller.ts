@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
   Req,
@@ -22,10 +23,13 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 
+import { IdDto } from 'src/core/common/dto/id.dto';
 import type { RequestWithCookies } from 'src/core/common/interfaces/request-with-cookies.interface';
 import cookieConfig from 'src/core/config/cookie.config';
 import tokensConfig from 'src/core/config/tokens.config';
 import { jwtCookieHeader } from 'src/core/swagger/jwt-cookie-header';
+import { Roles } from 'src/modules/auth/decorators/roles.decorator';
+import { UserRole } from 'src/modules/users/enums/roles.enum';
 import type { IRequestUser } from '../users/interfaces/user.interface';
 import { AuthService } from './auth.service';
 import { ActiveUser } from './decorators/active-user.decorator';
@@ -66,6 +70,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { accessToken, refreshToken } = await this.authService.signin(user);
+
     res.cookie(tokensConfig.access, accessToken, cookieConfig.access);
     res.cookie(tokensConfig.refresh, refreshToken, cookieConfig.refresh);
     return { message: 'Signed in successfully', user };
@@ -74,9 +79,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign out user' })
   @ApiOkResponse({ description: 'User signed out successfully' })
   @HttpCode(HttpStatus.OK)
-  @Public()
   @Post('signout')
-  signout(@Res({ passthrough: true }) res: Response) {
+  async signout(
+    @ActiveUser() user: IRequestUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.signout(user.id);
     res.clearCookie(tokensConfig.access, cookieConfig.access);
     res.clearCookie(tokensConfig.refresh, cookieConfig.refresh);
     return { message: 'Signed out successfully' };
@@ -98,6 +106,7 @@ export class AuthController {
 
     const { accessToken, refreshToken: newRefreshToken } =
       await this.authService.refreshTokens(user.id, refreshToken);
+
     res.cookie(tokensConfig.access, accessToken, cookieConfig.access);
     res.cookie(tokensConfig.refresh, newRefreshToken, cookieConfig.refresh);
     return { message: 'Tokens refreshed successfully' };
@@ -108,11 +117,20 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Invalid current password' })
   @ApiNotFoundResponse({ description: 'User not found' })
   @Patch('change-password')
-  async changePassword(
+  public async changePassword(
     @ActiveUser() user: IRequestUser,
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(user.id, dto);
+  }
+
+  @ApiOperation({ summary: 'Assign role to user' })
+  @ApiOkResponse({ description: 'Role assigned successfully' })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @Roles(UserRole.ADMIN)
+  @Patch('assign-role/:id')
+  public async assignRole(@Param() { id }: IdDto, @Body() dto: UserRole) {
+    return this.authService.assignRole(id, dto);
   }
 
   @ApiOperation({ summary: 'Verify email with code' })
@@ -124,7 +142,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Public()
   @Post('verify-email')
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
+  public async verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto);
   }
 
@@ -135,7 +153,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Public()
   @Post('resend-verification')
-  async resendVerification(@Body() dto: ResendVerificationDto) {
+  public async resendVerification(@Body() dto: ResendVerificationDto) {
     return this.authService.resendVerificationCode(dto);
   }
 }
