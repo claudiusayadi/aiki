@@ -1,98 +1,221 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Aiki
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A modern task management API built with NestJS, designed to help users organize and prioritize their work efficiently through flexible subscription plans.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Overview
 
-## Description
+Aiki (from the Hausa word for "tasks") is a RESTful API that provides comprehensive task management capabilities with integrated payment processing. The platform supports multiple subscription tiers, allowing users to choose plans that match their productivity needs.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Features
 
-## Project setup
+### Core Functionality
+
+- **Task Management**: Create, update, delete, and restore tasks with soft-delete support
+- **User Authentication**: Secure JWT-based authentication with email verification
+- **Flexible Plans**: Multiple subscription tiers including free starter, pay-per-task, and unlimited subscription models
+- **Payment Integration**: Seamless Paystack integration for payment processing
+- **Email Notifications**: Automated email delivery for account verification
+- **Rate Limiting**: Built-in request throttling for API protection
+- **Health Monitoring**: Application health check endpoints
+
+### Technical Highlights
+
+- RESTful API architecture with Swagger documentation
+- PostgreSQL database with TypeORM
+- Redis for session management
+- Cookie-based authentication
+- Role-based access control (RBAC)
+- Comprehensive error handling and logging
+- Environment-based configuration
+
+## Technology Stack
+
+- **Framework**: NestJS
+- **Language**: TypeScript
+- **Database**: PostgreSQL with TypeORM
+- **Cache**: Redis (ioredis)
+- **Authentication**: Passport.js with JWT strategy
+- **Email**: Nodemailer with Handlebars templates
+- **Payments**: Paystack API integration
+- **Validation**: class-validator and class-transformer
+- **Security**: Helmet, CORS, Argon2 password hashing
+- **Documentation**: Swagger/OpenAPI
+
+## Prerequisites
+
+- Node.js 18.x or higher
+- PostgreSQL 14.x or higher
+- Redis 6.x or higher
+- Yarn package manager (or your preferred pm)
+
+## Installation
 
 ```bash
-$ yarn install
+# Install dependencies
+yarn install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run database migrations
+yarn migration:run
 ```
 
-## Compile and run the project
+## Configuration
+
+Copy the `.env.example` file to `.env` and fill in the required configuration values.
+
+## Running the Application
 
 ```bash
-# development
-$ yarn run start
+# Development mode with watch
+yarn start:dev
 
-# watch mode
-$ yarn run start:dev
+# Production build
+yarn build
+yarn start:prod
 
-# production mode
-$ yarn run start:prod
+# Debug mode
+yarn start:debug
 ```
 
-## Run tests
+The API will be available at `http://localhost:5154/api/v1`
+
+Swagger documentation: `http://localhost:5154/api/v1/docs`
+
+## Database Migrations
 
 ```bash
-# unit tests
-$ yarn run test
+# Generate a new migration
+yarn migration:generate --name=MigrationName
 
-# e2e tests
-$ yarn run test:e2e
+# Run pending migrations
+yarn migration:run
 
-# test coverage
-$ yarn run test:cov
+# Revert last migration
+yarn migration:revert
 ```
+
+## API Endpoints
+
+### Authentication
+
+- `POST /api/v1/auth/signup` - Register a new user
+- `POST /api/v1/auth/signin` - Sign in with credentials
+- `POST /api/v1/auth/signout` - Sign out current user
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/verify-email` - Verify email address
+- `POST /api/v1/auth/resend-verification` - Resend verification code
+- `PATCH /api/v1/auth/change-password` - Change user password
+
+### Tasks
+
+- `POST /api/v1/tasks` - Create a new task
+- `GET /api/v1/tasks` - List all tasks
+- `GET /api/v1/tasks/:id` - Get task by ID
+- `PATCH /api/v1/tasks/:id` - Update a task
+- `DELETE /api/v1/tasks/:id` - Soft delete a task
+- `GET /api/v1/tasks/:id/restore` - Restore a deleted task
+
+### Plans
+
+- `POST /api/v1/plans` - Create a new plan (admin)
+- `GET /api/v1/plans` - List available plans
+- `GET /api/v1/plans/:id` - Get plan details
+- `PATCH /api/v1/plans/:id` - Update a plan (admin)
+- `DELETE /api/v1/plans/:id` - Delete a plan (admin)
+
+### Payments
+
+- `POST /api/v1/payments/initialize` - Initialize a payment
+- `POST /api/v1/payments/verify` - Verify a payment
+- `POST /api/v1/payments/webhook` - Paystack webhook handler
+- `GET /api/v1/payments` - List user payments
+- `GET /api/v1/payments/:id` - Get payment details
+
+### Users
+
+- `GET /api/v1/users` - List users (admin)
+- `GET /api/v1/users/:id` - Get user by ID
+- `PATCH /api/v1/users/:id` - Update user
+- `DELETE /api/v1/users/:id` - Delete user
+- `GET /api/v1/users/recover` - Recover deleted user account
+
+### Health
+
+- `GET /api/v1/health` - Application health check
+- `GET /api/v1/health/metrics` - Detailed health metrics
+
+## Testing (WIP)
+
+```bash
+# Run unit tests
+yarn test
+
+# Run tests in watch mode
+yarn test:watch
+
+# Generate test coverage
+yarn test:cov
+
+# Run end-to-end tests
+yarn test:e2e
+```
+
+## Project Structure
+
+```
+src/
+├── core/               # Core functionality
+│   ├── config/        # Configuration files
+│   ├── db/            # Database setup and migrations
+│   ├── redis/         # Redis service
+│   └── common/        # Shared utilities and decorators
+├── modules/           # Feature modules
+│   ├── auth/          # Authentication module
+│   ├── email/         # Email service
+│   ├── health/        # Health check module
+│   ├── payments/      # Payment processing
+│   ├── plans/         # Subscription plans
+│   ├── tasks/         # Task management
+│   └── users/         # User management
+└── main.ts            # Application entry point
+```
+
+## Security
+
+- Passwords hashed with Argon2
+- JWT tokens for stateless authentication
+- HTTP-only cookies for token storage
+- Rate limiting to prevent abuse
+- CORS configuration
+- Helmet for security headers
+- SQL injection prevention via TypeORM
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+For production deployment:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+1. Set `NODE_ENV=production` in environment variables
+2. Configure your production database connection
+3. Set up SSL/TLS certificates for HTTPS
+4. Configure proper CORS origins
+5. Set up Redis for session storage
+6. Configure email service credentials
+7. Set up Paystack production keys
+8. Run database migrations
+9. Build and start the application:
 
 ```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+yarn build
+yarn start:prod
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED - Proprietary software
+
+## Support
+
+For issues and questions, please refer to the project's issue tracker or contact me on [X](https://x.com/ClaudiusAyadi)
