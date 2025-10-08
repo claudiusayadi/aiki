@@ -22,9 +22,7 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Initialize payment (Focus one-time or Flow subscription)',
   })
-  @ApiCreatedResponse({
-    description: 'Payment initialized successfully',
-  })
+  @ApiCreatedResponse({ description: 'Payment initialized successfully' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @Post('initialize')
   async initializePayment(
@@ -34,17 +32,15 @@ export class PaymentsController {
     return await this.paymentsService.initializePayment(user, dto);
   }
 
-  @ApiOperation({ summary: 'Verify payment and update user tasks_left' })
-  @ApiOkResponse({
-    description: 'Payment verified successfully',
-  })
+  @ApiOperation({ summary: 'Verify payment and update user plan' })
+  @ApiOkResponse({ description: 'Payment verified successfully' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @Post('verify')
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return await this.paymentsService.verifyPayment(dto);
   }
 
-  @ApiOperation({ summary: 'Handle Paystack webhook (public endpoint)' })
+  @ApiOperation({ summary: 'Handle Paystack webhook' })
   @Public()
   @Post('webhook')
   async handleWebhook(
@@ -59,21 +55,18 @@ export class PaymentsController {
     description: 'Payments retrieved successfully',
     type: [Payment],
   })
-  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Get()
   async findAll(@ActiveUser() user: IRequestUser) {
     return await this.paymentsService.findAll(user);
   }
 
-  /**
-   * Get specific payment by ID
-   */
   @ApiOperation({ summary: 'Get payment by ID' })
   @ApiOkResponse({
     description: 'Payment retrieved successfully',
     type: Payment,
   })
-  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Get(':id')
   async findOne(@Param() { id }: IdDto, @ActiveUser() user: IRequestUser) {
     return await this.paymentsService.findOne(id, user);

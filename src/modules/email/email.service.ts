@@ -35,17 +35,14 @@ export class EmailService {
         to: email,
         subject: 'Verify Your Email - Aiki',
         template: 'verification',
-        context: {
-          code,
-          name,
-        },
+        context: { code, name },
       });
 
       this.logger.log(`Verification email sent successfully to ${email}`);
     } catch (error) {
       this.logger.error(
-        `Failed to send verification email to ${email}:`,
-        error,
+        `Failed to send verification email to ${email}`,
+        error instanceof Error ? error.stack : String(error),
       );
       throw error;
     }

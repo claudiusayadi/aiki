@@ -198,16 +198,11 @@ export class PaymentsService {
       // Find payment record
       const payment = await this.paymentsRepo.findOne({
         where: { transaction_reference: dto.reference },
-        relations: ['user', 'plan'],
+        relations: { user: true, plan: true },
       });
 
-      if (!payment) {
-        throw new NotFoundException('Payment record not found');
-      }
-
-      if (!payment.plan) {
-        throw new Error('Payment plan not found');
-      }
+      if (!payment) throw new NotFoundException('Payment record not found');
+      if (!payment.plan) throw new Error('Payment plan not found');
 
       // Update payment status
       payment.status = PaymentStatus.SUCCESS;
@@ -224,21 +219,13 @@ export class PaymentsService {
         where: { id: payment.user.id },
       });
 
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+      if (!user) throw new NotFoundException('User not found');
 
       if (payment.payment_type === PaymentType.ONE_TIME) {
-        // Focus plan: increment tasks_left by quantity
-        const currentTasks = user.tasks_left || 0;
-        const additionalTasks = payment.quantity || 1;
-        user.tasks_left = currentTasks + additionalTasks;
-
-        // Update user's plan to Focus plan
-        user.plan = payment.plan;
+        user.tasks_left = (user.tasks_left || 0) + (payment.quantity ?? 0); // Focus plan: increment tasks_left by quantity
+        user.plan = payment.plan; // update user plan
       } else if (payment.payment_type === PaymentType.SUBSCRIPTION) {
-        // Flow plan: set tasks_left to null (unlimited) and update plan
-        user.tasks_left = null;
+        user.tasks_left = null; // unlimited tasks
         user.plan = payment.plan;
 
         // Set renewal date for subscription
@@ -273,9 +260,7 @@ export class PaymentsService {
       .update(JSON.stringify(payload))
       .digest('hex');
 
-    if (hash !== signature) {
-      throw new BadRequestException('Invalid signature');
-    }
+    if (hash !== signature) throw new BadRequestException('Invalid signature');
 
     const event = payload.event;
 
@@ -292,29 +277,21 @@ export class PaymentsService {
     return { status: 'ignored', message: 'Event not handled' };
   }
 
-  /**
-   * Get all payments for current user
-   */
   public async findAll(currentUser: IRequestUser) {
     return await this.paymentsRepo.find({
       where: { user: { id: currentUser.id } },
-      relations: ['plan'],
+      relations: { plan: true },
       order: { registry: { createdAt: 'DESC' } },
     });
   }
 
-  /**
-   * Get payment by ID
-   */
   public async findOne(id: string, currentUser: IRequestUser) {
     const payment = await this.paymentsRepo.findOne({
       where: { id, user: { id: currentUser.id } },
-      relations: ['plan', 'user'],
+      relations: { user: true, plan: true },
     });
 
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
+    if (!payment) throw new NotFoundException('Payment not found');
 
     return payment;
   }

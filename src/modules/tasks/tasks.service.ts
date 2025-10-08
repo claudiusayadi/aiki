@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -18,6 +19,8 @@ import { Task } from './entities/task.entity';
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(Task) private readonly tasksRepo: Repository<Task>,
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
@@ -28,8 +31,11 @@ export class TasksService {
       where: { id: currentUser.id },
     });
 
-    // Check if user has tasks left (null = unlimited)
+    // Verify user.tasks_left (null = unlimited)
     if (user.tasks_left !== null && user.tasks_left <= 0) {
+      this.logger.warn(
+        `User ${user.email} attempted to create task with no tasks left`,
+      );
       throw new BadRequestException(
         'No tasks left. Please upgrade your plan to create more tasks.',
       );
@@ -39,6 +45,7 @@ export class TasksService {
     if (user.tasks_left !== null) {
       user.tasks_left -= 1;
       await this.usersRepo.save(user);
+      this.logger.log(`User ${user.email} tasks remaining: ${user.tasks_left}`);
     }
 
     const task = this.tasksRepo.create({
@@ -47,11 +54,13 @@ export class TasksService {
       user,
     });
 
-    return await this.tasksRepo.save(task);
+    const savedTask = await this.tasksRepo.save(task);
+    this.logger.log(`Task created: ${savedTask.id} by user ${user.email}`);
+
+    return savedTask;
   }
 
   public async findAll(currentUser: IRequestUser) {
-    // Admins can see all tasks, users see only their own
     const where =
       currentUser.role === UserRole.ADMIN
         ? {}
@@ -70,7 +79,6 @@ export class TasksService {
       relations: { user: true },
     });
 
-    // Check if user owns the task or is admin
     if (currentUser.role !== UserRole.ADMIN) {
       compareIds(currentUser.id, task.user.id);
     }
@@ -83,13 +91,11 @@ export class TasksService {
     currentUser: IRequestUser,
     dto: UpdateTaskDto,
   ) {
-    // First get the task to check ownership
     const existingTask = await this.tasksRepo.findOneOrFail({
       where: { id },
       relations: { user: true },
     });
 
-    // Check if user owns the task or is admin
     if (currentUser.role !== UserRole.ADMIN) {
       compareIds(currentUser.id, existingTask.user.id);
     }
@@ -110,10 +116,6 @@ export class TasksService {
     soft: boolean = false,
   ) {
     const task = await this.findOne(id, currentUser);
-
-    // Authorization is already checked in findOne method
-    // No need to check again here
-
     if (!soft) throw new ForbiddenException('Forbidden resource');
 
     return soft
@@ -129,8 +131,6 @@ export class TasksService {
     });
 
     if (!task) throw new NotFoundException('Task not found');
-
-    // Check if user owns the task or is admin
     if (currentUser.role !== UserRole.ADMIN) {
       compareIds(currentUser.id, task.user.id);
     }

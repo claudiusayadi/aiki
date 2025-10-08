@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -28,13 +29,15 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
     @Inject(jwtConfig.KEY)
     private readonly jwtCfg: ConfigType<typeof jwtConfig>,
     @Inject(emailConfig.KEY)
-    private readonly emailCfg: ConfigType<typeof emailConfig>,
+    private readonly config: ConfigType<typeof emailConfig>,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
@@ -54,14 +57,10 @@ export class AuthService {
       },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credential');
-    }
+    if (!user) throw new UnauthorizedException('Invalid credential');
 
     const isPasswordValid = await user.compare(password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credential');
-    }
+    if (!isPasswordValid) throw new UnauthorizedException('Invalid credential');
 
     if (!user.verified) {
       throw new UnauthorizedException(
@@ -85,10 +84,11 @@ export class AuthService {
 
     if (existing) throw new ConflictException('Account already exists!');
 
-    // Get the default starter plan
+    // Assign starter plan
     const starterPlan = await this.plansService.findOne('', 'starter');
 
     if (!starterPlan) {
+      this.logger.error('Starter plan not found during signup');
       throw new Error(
         'Starter plan not found. Please ensure default plans are seeded.',
       );
@@ -103,7 +103,12 @@ export class AuthService {
     const savedUser = await this.usersRepo.save(user);
 
     // Generate and send verification code
-    await this.sendVerificationCode(savedUser);
+    this.sendVerificationCode(savedUser).catch((error) => {
+      this.logger.error(
+        `Failed to send verification email to ${email}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    });
 
     return {
       message: `A verification code has been sent to ${email}. Please check your email and verify your account at /api/v1/auth/verify-email`,
@@ -124,9 +129,7 @@ export class AuthService {
       secret: this.jwtCfg.secret,
     });
 
-    if (!decoded) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    if (!decoded) throw new UnauthorizedException('Invalid refresh token');
 
     const payload: IRequestUser = {
       id: decoded.sub,
@@ -146,8 +149,9 @@ export class AuthService {
     const user = await this.usersRepo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found!');
 
-    if (!(await user.compare(currentPassword)))
+    if (!(await user.compare(currentPassword))) {
       throw new UnauthorizedException('Invalid current password!');
+    }
 
     user.password = newPassword;
     await this.usersRepo.save(user);
@@ -225,13 +229,8 @@ export class AuthService {
       },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.verified) {
-      throw new BadRequestException('Email already verified');
-    }
+    if (!user) throw new NotFoundException('User not found');
+    if (user.verified) throw new BadRequestException('Email already verified');
 
     if (!user.verification_code || !user.verification_code_expires_at) {
       throw new BadRequestException(
@@ -265,13 +264,8 @@ export class AuthService {
     const { email } = dto;
     const user = await this.usersRepo.findOne({ where: { email } });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.verified) {
-      throw new BadRequestException('Email already verified');
-    }
+    if (!user) throw new NotFoundException('User not found');
+    if (user.verified) throw new BadRequestException('Email already verified');
 
     await this.sendVerificationCode(user);
 
@@ -282,7 +276,9 @@ export class AuthService {
 
   private async sendVerificationCode(user: User): Promise<void> {
     const code = this.generateVerificationCode();
-    const expiresAt = new Date(Date.now() + this.emailCfg.verificationCodeTtl);
+    const expiresAt = new Date(
+      Date.now() + this.config.verificationCodeTtl * 1000,
+    );
 
     user.verification_code = code;
     user.verification_code_expires_at = expiresAt;
