@@ -86,4 +86,12 @@ export class PaymentsController {
   async findOne(@Param() { id }: IdDto, @ActiveUser() user: IRequestUser) {
     return await this.paymentsService.findOne(id, user);
   }
+
+  @ApiOperation({ summary: 'Cancel active subscription' })
+  @ApiOkResponse({ description: 'Subscription cancelled successfully' })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @Post('subscriptions/cancel')
+  async cancelSubscription(@ActiveUser() user: IRequestUser) {
+    return await this.paymentsService.cancelSubscription(user);
+  }
 }

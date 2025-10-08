@@ -121,14 +121,11 @@ export class PaymentsService {
     // Subscription (flow plan)
     else {
       const planCode = plan.metadata?.paystack_plan_code as string | undefined;
-
-      this.logger.log(
-        `Initializing subscription for user ${user.email} - Plan: ${plan.slug}, Code: ${planCode}`,
-      );
-
       if (!planCode) {
         this.logger.error(
-          `Flow plan missing paystack_plan_code in metadata: ${JSON.stringify(plan.metadata)}`,
+          `Flow plan missing paystack_plan_code in metadata: ${JSON.stringify(
+            plan.metadata,
+          )}`,
         );
         throw new BadRequestException(
           'Plan is not configured for subscriptions',
@@ -166,6 +163,7 @@ export class PaymentsService {
           plan: { id: plan.id },
           metadata: {
             subscription_code: response.data.data.subscription_code,
+            email_token: response.data.data.email_token,
             paystack_plan_code: planCode,
           },
         });
@@ -331,5 +329,73 @@ export class PaymentsService {
     if (!payment) throw new NotFoundException('Payment not found');
 
     return payment;
+  }
+
+  public async cancelSubscription(currentUser: IRequestUser) {
+    const user = await this.usersRepo.findOne({
+      where: { id: currentUser.id },
+      relations: { plan: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.plan?.is_subscription) {
+      throw new BadRequestException(
+        'User does not have an active subscription',
+      );
+    }
+
+    const payment = await this.paymentsRepo.findOne({
+      where: {
+        user: { id: user.id },
+        payment_type: PaymentType.SUBSCRIPTION,
+        status: PaymentStatus.SUCCESS,
+      },
+      order: { registry: { createdAt: 'DESC' } },
+    });
+
+    if (!payment || !payment.metadata?.subscription_code) {
+      throw new NotFoundException('Active subscription not found');
+    }
+
+    const subscriptionCode = payment.metadata.subscription_code as string;
+    const emailToken = payment.metadata.email_token as string;
+
+    if (!emailToken) {
+      throw new BadRequestException(
+        'Subscription email token not found. Please contact support.',
+      );
+    }
+
+    try {
+      await firstValueFrom(
+        this.httpService.post(
+          `${this.config.baseUrl}/subscription/disable`,
+          {
+            code: subscriptionCode,
+            token: emailToken,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${this.config.secretKey}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+
+      user.renews_at = null;
+      await this.usersRepo.save(user);
+
+      return {
+        status: 'success',
+        message: 'Subscription cancelled successfully',
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to cancel subscription for user ${user.email}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new BadRequestException('Failed to cancel subscription');
+    }
   }
 }
