@@ -64,12 +64,17 @@ export class TasksService {
   }
 
   public async findOne(id: string, currentUser: IRequestUser) {
-    if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
-
-    return await this.tasksRepo.findOneOrFail({
+    const task = await this.tasksRepo.findOneOrFail({
       where: { id },
       relations: { user: true },
     });
+
+    // Check if user owns the task or is admin
+    if (currentUser.role !== UserRole.ADMIN) {
+      compareIds(currentUser.id, task.user.id);
+    }
+
+    return task;
   }
 
   public async update(
@@ -77,7 +82,16 @@ export class TasksService {
     currentUser: IRequestUser,
     dto: UpdateTaskDto,
   ) {
-    if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
+    // First get the task to check ownership
+    const existingTask = await this.tasksRepo.findOneOrFail({
+      where: { id },
+      relations: { user: true },
+    });
+
+    // Check if user owns the task or is admin
+    if (currentUser.role !== UserRole.ADMIN) {
+      compareIds(currentUser.id, existingTask.user.id);
+    }
 
     const task = await this.tasksRepo.preload({
       id,
@@ -95,9 +109,8 @@ export class TasksService {
   ) {
     const task = await this.findOne(id, currentUser);
 
-    if (currentUser.role !== UserRole.ADMIN) {
-      compareIds(currentUser.id, id);
-    }
+    // Authorization is already checked in findOne method
+    // No need to check again here
 
     if (!soft) throw new ForbiddenException('Forbidden resource');
 
@@ -107,14 +120,19 @@ export class TasksService {
   }
 
   public async restore(id: string, currentUser: IRequestUser) {
-    if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
-
     const task = await this.tasksRepo.findOne({
-      where: { id, user: { id: currentUser.id } },
+      where: { id },
+      relations: { user: true },
       withDeleted: true,
     });
 
     if (!task) throw new NotFoundException('Task not found');
+
+    // Check if user owns the task or is admin
+    if (currentUser.role !== UserRole.ADMIN) {
+      compareIds(currentUser.id, task.user.id);
+    }
+
     if (!task.isDeleted) throw new ConflictException('Task not deleted');
     return await this.tasksRepo.recover(task);
   }

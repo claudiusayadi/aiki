@@ -32,7 +32,7 @@ export class Task {
   @Column({ type: 'timestamp', nullable: true })
   due_at?: Date;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE', eager: true })
+  @ManyToOne(() => User, { onDelete: 'CASCADE', eager: false })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
