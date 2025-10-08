@@ -16,19 +16,29 @@ export class Traffic implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
-    const { method, url } = request;
+    const { method, url, ip } = request;
     const startTime = Date.now();
 
     return next.handle().pipe(
-      tap(() => {
-        const endTime = Date.now();
-        const timeTaken = endTime - startTime;
-        const statusCode = response.statusCode;
-        const icon = statusCode < 400 ? '🛈' : '❌';
+      tap({
+        next: () => {
+          const duration = Date.now() - startTime;
+          const { statusCode } = response;
+          const isSuccess = statusCode < 400;
 
-        this.logger.log(
-          `${icon} [${statusCode}] ${method} ${url} ${timeTaken}ms`,
-        );
+          this.logger.log(
+            `${isSuccess ? '✓' : '✗'} ${method} ${url} ${statusCode} ${duration}ms - ${ip}`,
+          );
+        },
+        error: (error: Error & { status?: number }) => {
+          const duration = Date.now() - startTime;
+          const statusCode = error.status ?? 500;
+
+          this.logger.error(
+            `✗ ${method} ${url} ${statusCode} ${duration}ms - ${ip}`,
+            error.message,
+          );
+        },
       }),
     );
   }

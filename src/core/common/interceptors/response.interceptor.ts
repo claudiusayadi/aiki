@@ -7,6 +7,8 @@ import {
 import { Response } from 'express';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+
+import type { PaginatedResult } from '../interfaces/paginated-result.interface';
 import { ApiResponse } from '../interfaces/response.interface';
 
 @Injectable()
@@ -22,12 +24,12 @@ export class ResponseInterceptor<T>
 
     return next.handle().pipe(
       map((data: T) => {
-        if (Array.isArray(data)) {
+        if (this.isPaginatedResult(data)) {
           return {
             code,
             status: 'success',
-            results: data.length,
-            data,
+            data: data.data as T,
+            meta: data.meta,
           };
         }
 
@@ -37,6 +39,17 @@ export class ResponseInterceptor<T>
           data,
         };
       }),
+    );
+  }
+
+  private isPaginatedResult(data: unknown): data is PaginatedResult<unknown> {
+    return (
+      typeof data === 'object' &&
+      data !== null &&
+      'data' in data &&
+      'meta' in data &&
+      Array.isArray((data as PaginatedResult<unknown>).data) &&
+      typeof (data as PaginatedResult<unknown>).meta === 'object'
     );
   }
 }

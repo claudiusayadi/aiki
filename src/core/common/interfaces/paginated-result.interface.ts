@@ -1,9 +1,6 @@
-export interface ApiResponse<T = unknown> {
-  code?: number;
-  status: string;
-  data?: T;
-  results?: number;
-  meta?: {
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: {
     page: number;
     limit: number;
     total: number;
