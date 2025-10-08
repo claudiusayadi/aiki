@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiCreatedResponse,
   ApiOkResponse,
@@ -7,6 +15,7 @@ import {
 } from '@nestjs/swagger';
 
 import { IdDto } from '../../core/common/dto/id.dto';
+import { QueryDto } from '../../core/common/dto/query.dto';
 import { ActiveUser } from '../auth/decorators/active-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import type { IRequestUser } from '../users/interfaces/user.interface';
@@ -19,9 +28,7 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @ApiOperation({
-    summary: 'Initialize payment (Focus one-time or Flow subscription)',
-  })
+  @ApiOperation({ summary: 'Initialize payment  - one-time or subscription' })
   @ApiCreatedResponse({ description: 'Payment initialized successfully' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @Post('initialize')
@@ -34,10 +41,18 @@ export class PaymentsController {
 
   @ApiOperation({ summary: 'Verify payment and update user plan' })
   @ApiOkResponse({ description: 'Payment verified successfully' })
-  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @Public()
   @Post('verify')
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return await this.paymentsService.verifyPayment(dto);
+  }
+
+  @ApiOperation({ summary: 'Handle Paystack payment callback redirect' })
+  @ApiOkResponse({ description: 'Payment callback processed successfully' })
+  @Public()
+  @Get('callback')
+  async handleCallback(@Query('reference') reference: string) {
+    return await this.paymentsService.handleCallback(reference);
   }
 
   @ApiOperation({ summary: 'Handle Paystack webhook' })
@@ -57,8 +72,8 @@ export class PaymentsController {
   })
   @ApiUnauthorizedResponse({ description: 'Admin access required' })
   @Get()
-  async findAll(@ActiveUser() user: IRequestUser) {
-    return await this.paymentsService.findAll(user);
+  async findAll(@ActiveUser() user: IRequestUser, @Query() query: QueryDto) {
+    return await this.paymentsService.findAll(user, query);
   }
 
   @ApiOperation({ summary: 'Get payment by ID' })

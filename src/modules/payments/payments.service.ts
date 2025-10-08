@@ -12,6 +12,9 @@ import * as crypto from 'crypto';
 import { firstValueFrom } from 'rxjs';
 import { Repository } from 'typeorm';
 
+import { QueryDto } from '../../core/common/dto/query.dto';
+import { PaginatedResult } from '../../core/common/interfaces/paginated-result.interface';
+import { PaginationUtil } from '../../core/common/utils/pagination.util';
 import paymentConfig from '../../core/config/payment.config';
 import { Plan } from '../plans/entities/plan.entity';
 import { User } from '../users/entities/user.entity';
@@ -174,9 +177,7 @@ export class PaymentsService {
     }
   }
 
-  /**
-   * Verify payment and update user tasks_left
-   */
+  // Verify payment and update user tasks_left
   public async verifyPayment(dto: VerifyPaymentDto) {
     try {
       // Verify transaction with Paystack
@@ -222,10 +223,10 @@ export class PaymentsService {
       if (!user) throw new NotFoundException('User not found');
 
       if (payment.payment_type === PaymentType.ONE_TIME) {
-        user.tasks_left = (user.tasks_left || 0) + (payment.quantity ?? 0); // Focus plan: increment tasks_left by quantity
-        user.plan = payment.plan; // update user plan
+        user.tasks_left = (user.tasks_left || 0) + (payment.quantity ?? 0);
+        user.plan = payment.plan;
       } else if (payment.payment_type === PaymentType.SUBSCRIPTION) {
-        user.tasks_left = null; // unlimited tasks
+        user.tasks_left = null;
         user.plan = payment.plan;
 
         // Set renewal date for subscription
@@ -247,9 +248,31 @@ export class PaymentsService {
     }
   }
 
-  /**
-   * Handle Paystack webhooks
-   */
+  // Paystack callback redirect after payment
+  public async handleCallback(reference: string) {
+    if (!reference) {
+      throw new BadRequestException('Payment reference is required');
+    }
+
+    try {
+      const result = await this.verifyPayment({ reference });
+      const planName = result.payment.plan?.name;
+
+      return {
+        status: result.status,
+        message: `Payment successful. Welcome to ${planName}! Time to supercharge your productivity!`,
+        plan: planName,
+      };
+    } catch (error) {
+      this.logger.error('Payment callback failed', error);
+      return {
+        status: 'failed',
+        message: 'Payment was not successful. Please try again.',
+      };
+    }
+  }
+
+  // Paystack webhook
   public async handleWebhook(
     payload: { event: string; data: { reference: string } },
     signature: string,
@@ -277,11 +300,15 @@ export class PaymentsService {
     return { status: 'ignored', message: 'Event not handled' };
   }
 
-  public async findAll(currentUser: IRequestUser) {
-    return await this.paymentsRepo.find({
+  public async findAll(
+    currentUser: IRequestUser,
+    query: QueryDto,
+  ): Promise<PaginatedResult<Payment>> {
+    return await PaginationUtil.paginate(this.paymentsRepo, {
+      pagination: query,
+      sort: query,
       where: { user: { id: currentUser.id } },
       relations: { plan: true },
-      order: { registry: { createdAt: 'DESC' } },
     });
   }
 
