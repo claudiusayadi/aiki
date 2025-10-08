@@ -34,12 +34,19 @@ export class UsersService {
   }
 
   public async findAll() {
-    return await this.usersRepo.find();
+    return await this.usersRepo.find({
+      relations: { plan: true },
+      order: { registry: { createdAt: 'DESC' } },
+    });
   }
 
   public async findOne(id: string, currentUser: IRequestUser) {
     if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
-    return await this.usersRepo.findOneOrFail({ where: { id } });
+
+    return await this.usersRepo.findOneOrFail({
+      where: { id },
+      relations: { plan: true },
+    });
   }
 
   public async update(
@@ -65,10 +72,8 @@ export class UsersService {
     currentUser: IRequestUser,
     soft: boolean = false,
   ) {
-    if (currentUser.role !== UserRole.ADMIN) {
-      compareIds(currentUser.id, id);
-      if (!soft) throw new ForbiddenException('Forbidden resource');
-    }
+    if (currentUser.role !== UserRole.ADMIN) compareIds(currentUser.id, id);
+    if (!soft) throw new ForbiddenException('Forbidden resource');
 
     const user = await this.findOne(id, currentUser);
     return soft ? this.usersRepo.softRemove(user) : this.usersRepo.remove(user);
@@ -87,5 +92,30 @@ export class UsersService {
 
     if (!user.isDeleted) throw new ConflictException('User not deleted');
     return await this.usersRepo.recover(user);
+  }
+
+  /**
+   * Update user's task limits (used by payment service)
+   */
+  public async updateUserTaskLimits(
+    userId: string,
+    additionalTasks?: number | null,
+  ) {
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+      relations: { plan: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    // If switching to unlimited plan (Flow)
+    if (additionalTasks === null) {
+      user.tasks_left = null;
+    } else if (additionalTasks !== undefined) {
+      // Adding tasks (Focus plan)
+      user.tasks_left = (user.tasks_left || 0) + additionalTasks;
+    }
+
+    return await this.usersRepo.save(user);
   }
 }

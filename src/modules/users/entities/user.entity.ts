@@ -46,7 +46,7 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   verification_code_expires_at?: Date;
 
-  @ManyToOne(() => Plan, { eager: true })
+  @ManyToOne(() => Plan, { eager: false })
   @JoinColumn({ name: 'plan_id' })
   plan: Plan;
 
